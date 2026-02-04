@@ -94,8 +94,6 @@ See the docs: https://caleb196x.github.io/ReactorUMGOnlineDoc/quickstart/
 
 <h2 id="faq">FAQ</h2>
 
-Here is the English translation of your text:
-
 **Q: What is the relationship with native UMG/Slate?**
 **A:** ReactorUMG is designed for teams that "build UI with React" and complements UMG/Slate; it still relies on UE's UI rendering system and script bridging at the low level.
 
