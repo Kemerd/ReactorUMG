@@ -215,25 +215,18 @@ void FJsEnvRuntime::RestartJsScripts(
 
 FString FJsEnvRuntime::ComputeFileHash(const FString& FilePath)
 {
-	TArray<uint8> FileBytes;
-	if (!FFileHelper::LoadFileToArray(FileBytes, *FilePath))
+	/*
+	 * Use the same FMD5Hash::HashFile API that PuerTS SourceFileWatcher
+	 * uses -- proven to work in this codebase and handles the file I/O
+	 * and hashing in a single call.
+	 */
+	const FMD5Hash Hash = FMD5Hash::HashFile(*FilePath);
+	if (!Hash.IsValid())
 	{
 		return FString();
 	}
 
-	/* Compute MD5 over the raw file bytes */
-	uint8 Digest[16];
-	FMD5 Md5;
-	Md5.Update(FileBytes.GetData(), FileBytes.Num());
-	Md5.Final(Digest);
-
-	/* Convert to a hex string for easy comparison */
-	return FString::Printf(
-		TEXT("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"),
-		Digest[0], Digest[1], Digest[2],  Digest[3],
-		Digest[4], Digest[5], Digest[6],  Digest[7],
-		Digest[8], Digest[9], Digest[10], Digest[11],
-		Digest[12], Digest[13], Digest[14], Digest[15]);
+	return LexToString(Hash);
 }
 
 int32 FJsEnvRuntime::HotReloadChangedScripts(
