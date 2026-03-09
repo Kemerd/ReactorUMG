@@ -4,6 +4,7 @@
 #include "LogReactorUMG.h"
 #include "ReactorUMGBlueprintGeneratedClass.h"
 #include "ReactorUtils.h"
+#include "UMGManager.h"
 #include "Blueprint/WidgetTree.h"
 
 UReactorUIWidget::UReactorUIWidget(const FObjectInitializer& ObjectInitializer)
@@ -29,7 +30,37 @@ bool UReactorUIWidget::Initialize()
 
 void UReactorUIWidget::BeginDestroy()
 {
+	/* -----------------------------------------------------------
+	 * Tear down the JS bridge caller so the static map does not
+	 * hold a dangling pointer to this widget's delegate, and
+	 * release the JS environment back to the pool.
+	 * ----------------------------------------------------------- */
+	if (!LaunchScriptPath.IsEmpty())
+	{
+		UJsBridgeCaller::RemoveBridgeCaller(LaunchScriptPath);
+		UE_LOG(LogReactorUMG, Log,
+			TEXT("BeginDestroy: removed bridge caller for %s"), *LaunchScriptPath);
+	}
+
+	ReleaseJsEnv();
+
+	/* Null out transient object pointers so GC can collect them */
+	CustomJSArg = nullptr;
+
 	Super::BeginDestroy();
+}
+
+void UReactorUIWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	/*
+	 * Flush any batched widget/slot property synchronizations that the
+	 * React reconciler queued during its commit phase. Doing this here
+	 * means all Slate property pushes happen once per frame, in bulk,
+	 * instead of N times per property mutation.
+	 */
+	UUMGManager::FlushBatchedSync();
 }
 
 void UReactorUIWidget::SetNewWidgetTree()

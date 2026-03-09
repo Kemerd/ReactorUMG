@@ -1,37 +1,19 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 using UnrealBuildTool;
+using System.IO;
 
 public class ReactorUMG : ModuleRules
 {
 	public ReactorUMG(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				// ... add public include paths required here ...
-				// "Programs/UnrealHeaderTool/Public"
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				// ... add other private include paths required here ...
-			}
-			);
-			
-		
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
-				// ... add other public dependencies that you statically link with here ...
 			}
-			);
-			
-		
+		);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -44,23 +26,27 @@ public class ReactorUMG : ModuleRules
 				"Projects",
 				"DeveloperSettings",
 				"JsEnv",
-				"SpinePlugin",
 				"HTTP",
 				"Json",
 				"JsonUtilities",
 				"ProceduralMeshComponent",
 				"Puerts",
-				"Projects"
-				// ... add private dependencies that you statically link with here ...	
 			}
-			);
-		
-		
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-			);
+		);
+
+		// -----------------------------------------------------------
+		// SpinePlugin: only link if the module source directory exists
+		// -----------------------------------------------------------
+		string SpinePluginDir = Path.Combine(ModuleDirectory, "..", "Spine", "SpinePlugin");
+		bool bHasSpinePlugin = Directory.Exists(SpinePluginDir);
+		if (bHasSpinePlugin)
+		{
+			PrivateDependencyModuleNames.Add("SpinePlugin");
+			PublicDefinitions.Add("WITH_SPINE_PLUGIN=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_SPINE_PLUGIN=0");
+		}
 	}
 }

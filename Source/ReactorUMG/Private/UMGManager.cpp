@@ -18,10 +18,22 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-#ifdef RIVE_SUPPORT
+#if defined(RIVE_SUPPORT) && RIVE_SUPPORT
 #include "IRiveRendererModule.h"
 #include "Rive/RiveFile.h"
-#endif 
+#endif
+
+/* -----------------------------------------------------------------------
+ *  Static storage for batched property synchronization queues.
+ *  Populated by QueueWidgetForSync / QueueSlotForSync, drained by
+ *  FlushBatchedSync each frame.
+ * ----------------------------------------------------------------------- */
+TSet<TWeakObjectPtr<UWidget>>    UUMGManager::PendingWidgetSyncs;
+TSet<TWeakObjectPtr<UPanelSlot>> UUMGManager::PendingSlotSyncs;
+
+// ===================================================================
+//  Widget creation
+// ===================================================================
 
 UReactorUIWidget* UUMGManager::CreateReactWidget(UWorld* World)
 {
@@ -32,6 +44,10 @@ UUserWidget* UUMGManager::CreateWidget(UWidgetTree* Outer, UClass* Class)
 {
     return ::CreateWidget<UUserWidget>(Outer, Class);
 }
+
+// ===================================================================
+//  Immediate property synchronization
+// ===================================================================
 
 void UUMGManager::SynchronizeWidgetProperties(UWidget* Widget)
 {
@@ -46,8 +62,62 @@ void UUMGManager::SynchronizeWidgetProperties(UWidget* Widget)
 void UUMGManager::SynchronizeSlotProperties(UPanelSlot* Slot)
 {
     if (Slot)
+    {
         Slot->SynchronizeProperties();
+    }
 }
+
+// ===================================================================
+//  Batched property synchronization
+// ===================================================================
+
+void UUMGManager::QueueWidgetForSync(UWidget* Widget)
+{
+    if (Widget)
+    {
+        PendingWidgetSyncs.Add(Widget);
+    }
+}
+
+void UUMGManager::QueueSlotForSync(UPanelSlot* Slot)
+{
+    if (Slot)
+    {
+        PendingSlotSyncs.Add(Slot);
+    }
+}
+
+void UUMGManager::FlushBatchedSync()
+{
+#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION > 2
+    /* Drain the widget queue -- stale weak pointers are silently skipped */
+    for (const TWeakObjectPtr<UWidget>& WeakWidget : PendingWidgetSyncs)
+    {
+        if (UWidget* Widget = WeakWidget.Get())
+        {
+            Widget->SynchronizeProperties();
+        }
+    }
+#endif
+
+    /* Drain the slot queue */
+    for (const TWeakObjectPtr<UPanelSlot>& WeakSlot : PendingSlotSyncs)
+    {
+        if (UPanelSlot* Slot = WeakSlot.Get())
+        {
+            Slot->SynchronizeProperties();
+        }
+    }
+
+    PendingWidgetSyncs.Reset();
+    PendingSlotSyncs.Reset();
+}
+
+// ===================================================================
+//  Spine asset loading (only compiled when SpinePlugin is present)
+// ===================================================================
+
+#if WITH_SPINE_PLUGIN
 
 USpineAtlasAsset* UUMGManager::LoadSpineAtlas(UObject* Context, const FString& AtlasPath, const FString& DirName)
 {
@@ -67,17 +137,17 @@ USpineAtlasAsset* UUMGManager::LoadSpineAtlas(UObject* Context, const FString& A
 #endif
     const FString BaseFilePath = FPaths::GetPath(AssetFilePath);
 
-    // load textures
+    /* Load all texture pages referenced by the atlas */
     spine::Atlas* Atlas = SpineAtlasAsset->GetAtlas();
     SpineAtlasAsset->atlasPages.Empty();
 
-    spine::Vector<spine::AtlasPage*> &Pages = Atlas->getPages();
+    spine::Vector<spine::AtlasPage*>& Pages = Atlas->getPages();
     for (size_t i = 0; i < Pages.size(); ++i)
     {
-        spine::AtlasPage *P = Pages[i];
+        spine::AtlasPage* P = Pages[i];
         const FString SourceTextureFilename = FPaths::Combine(*BaseFilePath, UTF8_TO_TCHAR(P->name.buffer()));
-        UTexture2D *texture = UKismetRenderingLibrary::ImportFileAsTexture2D(SpineAtlasAsset, SourceTextureFilename);
-        SpineAtlasAsset->atlasPages.Add(texture); 
+        UTexture2D* Texture = UKismetRenderingLibrary::ImportFileAsTexture2D(SpineAtlasAsset, SourceTextureFilename);
+        SpineAtlasAsset->atlasPages.Add(Texture); 
     }
     
     return SpineAtlasAsset;
@@ -103,65 +173,55 @@ USpineSkeletonDataAsset* UUMGManager::LoadSpineSkeleton(UObject* Context, const 
 
     return SkeletonDataAsset;
 }
-#ifdef RIVE_SUPPORT
+
+#endif // WITH_SPINE_PLUGIN
+
+// ===================================================================
+//  Rive asset loading (only compiled when Rive support is present)
+// ===================================================================
+
+#if defined(RIVE_SUPPORT) && RIVE_SUPPORT
 URiveFile* UUMGManager::LoadRiveFile(UObject* Context, const FString& RivePath, const FString& DirName)
 {
     if (!IRiveRendererModule::Get().GetRenderer())
     {
-        UE_LOG(
-            LogReactorUMG,
-            Error,
-            TEXT("Unable to import the Rive file '%s': the Renderer is null"),
-            *RivePath);
+        UE_LOG(LogReactorUMG, Error,
+            TEXT("Unable to import the Rive file '%s': the Renderer is null"), *RivePath);
         return nullptr;
     }
 
     const FString RiveAssetFilePath = ProcessAssetFilePath(RivePath, DirName);
     if (!FPaths::FileExists(RiveAssetFilePath))
     {
-        UE_LOG(
-            LogReactorUMG,
-            Error,
-            TEXT(
-                "Unable to import the Rive file '%s': the file does not exist"),
-            *RiveAssetFilePath);
+        UE_LOG(LogReactorUMG, Error,
+            TEXT("Unable to import the Rive file '%s': the file does not exist"), *RiveAssetFilePath);
         return nullptr;
     }
 
     if (!Context)
     {
-        UE_LOG(
-            LogReactorUMG,
-            Error,
-            TEXT(
-                "Unable to create the Rive file '%s': the context is null"),
-            *RiveAssetFilePath);
+        UE_LOG(LogReactorUMG, Error,
+            TEXT("Unable to create the Rive file '%s': the context is null"), *RiveAssetFilePath);
         return nullptr;
     }
 
     TArray<uint8> FileBuffer;
-    if (!FFileHelper::LoadFileToArray(FileBuffer, *RiveAssetFilePath)) // load entire DNA file into the array
+    if (!FFileHelper::LoadFileToArray(FileBuffer, *RiveAssetFilePath))
     {
-        UE_LOG(
-            LogReactorUMG,
-            Error,
-            TEXT(
-                "Unable to import the Rive file '%s': Could not read the file"),
-            *RiveAssetFilePath);
+        UE_LOG(LogReactorUMG, Error,
+            TEXT("Unable to import the Rive file '%s': Could not read the file"), *RiveAssetFilePath);
         return nullptr;
     }
     
     URiveFile* RiveFile =
-    NewObject<URiveFile>(Context, URiveFile::StaticClass(), NAME_None, RF_Transient | RF_Public);
+        NewObject<URiveFile>(Context, URiveFile::StaticClass(), NAME_None, RF_Transient | RF_Public);
     check(RiveFile);
     
 #if WITH_EDITORONLY_DATA
     if (!RiveFile->EditorImport(RiveAssetFilePath, FileBuffer))
     {
         UE_LOG(LogReactorUMG, Error,
-       TEXT("Failed to import the Rive file '%s': Could not import the "
-            "riv file"),
-        *RiveAssetFilePath);
+            TEXT("Failed to import the Rive file '%s': Could not import the riv file"), *RiveAssetFilePath);
         RiveFile->ConditionalBeginDestroy();
         return nullptr;
     }
@@ -169,8 +229,7 @@ URiveFile* UUMGManager::LoadRiveFile(UObject* Context, const FString& RivePath, 
     
     return RiveFile;
 }
-
-#endif
+#endif // RIVE_SUPPORT
 
 UWorld* UUMGManager::GetCurrentWorld()
 {
