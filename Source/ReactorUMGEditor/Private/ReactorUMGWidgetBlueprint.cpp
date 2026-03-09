@@ -1,4 +1,5 @@
-﻿#include "ReactorUMGWidgetBlueprint.h"
+#include "ReactorUMGWidgetBlueprint.h"
+#include "ReactorUMGVersion.h"
 
 #include "JsEnvRuntime.h"
 #include "LogReactorUMG.h"
@@ -27,9 +28,9 @@ UReactorUMGWidgetBlueprint::UReactorUMGWidgetBlueprint(const FObjectInitializer&
 
 	RegisterBlueprintDeleteHandle();
 
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
+#if REACTORUMG_HAS_ON_PRE_FORCE_DELETE
 	FEditorDelegates::OnPreForceDeleteObjects.AddUObject(this, &UReactorUMGWidgetBlueprint::ForceDeleteAssets);
-#elif ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 4
+#else
 	FEditorDelegates::OnAssetsPreDelete.AddUObject(this, &UReactorUMGWidgetBlueprint::ForceDeleteAssets);
 #endif
 }
@@ -105,7 +106,7 @@ void UReactorUMGWidgetBlueprint::SetupMonitorForTsScripts()
 		}
 	});
 
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 4
+#if REACTORUMG_HAS_ON_ASSET_CLOSED_IN_EDITOR
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetClosedInEditor().AddLambda([this](
 		UObject* Asset, IAssetEditorInstance* AssetEditorInstance)
 	{
@@ -118,8 +119,7 @@ void UReactorUMGWidgetBlueprint::SetupMonitorForTsScripts()
 			}
 		}
 	});
-	
-#elif ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 4
+#else
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorRequestClose().AddLambda([this](
 		UObject* Asset, EAssetEditorCloseReason Reason)
 	{

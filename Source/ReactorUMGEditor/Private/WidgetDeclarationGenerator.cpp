@@ -1,4 +1,5 @@
-﻿#include "WidgetDeclarationGenerator.h"
+#include "WidgetDeclarationGenerator.h"
+#include "ReactorUMGVersion.h"
 
 #include "PropertyMacros.h"
 #include "ReactorUtils.h"
@@ -35,7 +36,7 @@ static FString SafeName(const FString& Name, bool firstCharLower = false)
 static bool IsDelegate(PropertyMacro* InProperty)
 {
 	return InProperty->IsA<DelegatePropertyMacro>() || InProperty->IsA<MulticastDelegatePropertyMacro>()
-#if ENGINE_MINOR_VERSION >= 23
+#if REACTORUMG_HAS_MULTICAST_INLINE_DELEGATE
 		   || InProperty->IsA<MulticastInlineDelegatePropertyMacro>() || InProperty->IsA<MulticastSparseDelegatePropertyMacro>()
 #endif
 		;

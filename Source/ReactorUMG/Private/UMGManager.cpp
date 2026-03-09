@@ -1,4 +1,5 @@
 #include "UMGManager.h"
+#include "ReactorUMGVersion.h"
 
 #include "HttpModule.h"
 #include "Components/PanelSlot.h"
@@ -14,7 +15,6 @@
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/Widget.h"
-#include "Runtime/Launch/Resources/Version.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -51,7 +51,7 @@ UUserWidget* UUMGManager::CreateWidget(UWidgetTree* Outer, UClass* Class)
 
 void UUMGManager::SynchronizeWidgetProperties(UWidget* Widget)
 {
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION > 2
+#if REACTORUMG_HAS_WIDGET_SYNC_PROPERTIES
     if (Widget)
     {
         Widget->SynchronizeProperties();
@@ -89,7 +89,7 @@ void UUMGManager::QueueSlotForSync(UPanelSlot* Slot)
 
 void UUMGManager::FlushBatchedSync()
 {
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION > 2
+#if REACTORUMG_HAS_WIDGET_SYNC_PROPERTIES
     /* Drain the widget queue -- stale weak pointers are silently skipped */
     for (const TWeakObjectPtr<UWidget>& WeakWidget : PendingWidgetSyncs)
     {

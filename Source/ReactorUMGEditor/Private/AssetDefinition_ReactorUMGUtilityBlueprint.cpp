@@ -1,6 +1,7 @@
 #include "AssetDefinition_ReactorUMGUtilityBlueprint.h"
-// Core includes
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 2
+#include "ReactorUMGVersion.h"
+
+#if REACTORUMG_HAS_LEGACY_ASSET_GET_ACTIONS
 #include "EditorUtilitySubsystem.h"
 #endif
 #include "ReactorUMGUtilityWidgetBlueprint.h"
@@ -62,7 +63,7 @@ uint32 AssetDefinition_ReactorUMGUtilityBlueprintAssetTypeActions::GetCategories
 	return Categories;
 }
 
-#if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 2
+#if REACTORUMG_HAS_LEGACY_ASSET_GET_ACTIONS
 void AssetDefinition_ReactorUMGUtilityBlueprintAssetTypeActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
 {
 	auto Blueprints = GetTypedWeakObjectPtrs<UWidgetBlueprint>(InObjects);
@@ -98,4 +99,4 @@ void AssetDefinition_ReactorUMGUtilityBlueprintAssetTypeActions::ExecuteRun(FWea
 		}
 	}
 }
-#endif
+#endif // REACTORUMG_HAS_LEGACY_ASSET_GET_ACTIONS
