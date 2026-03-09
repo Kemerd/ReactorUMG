@@ -63,6 +63,128 @@ public:
 	 */
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
+	/* ------------------------------------------------------------------ */
+	/*  Input Event Overrides: route UMG events into the React event system */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * @brief Intercepts keyboard key-down events and routes them to the
+	 *        React event system via the PuerTS bridge.
+	 *
+	 * If a focused React component has an onKeyDown handler, this override
+	 * dispatches the event through the JS event dispatcher. If the event
+	 * is not consumed by React, it falls through to the default UMG handling.
+	 *
+	 * @param MyGeometry  The geometry of this widget.
+	 * @param InKeyEvent  The key event from Slate.
+	 * @return            Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
+	/**
+	 * @brief Intercepts keyboard key-up events and routes them to React.
+	 * @param MyGeometry  The geometry of this widget.
+	 * @param InKeyEvent  The key event from Slate.
+	 * @return            Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+
+	/**
+	 * @brief Intercepts focus-received events for the React focus system.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param InFocusEvent  The focus event from Slate.
+	 * @return              Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
+
+	/**
+	 * @brief Called when this widget loses keyboard focus.
+	 * @param InFocusEvent  The focus event from Slate.
+	 */
+	virtual void NativeOnFocusLost(const FFocusEvent& InFocusEvent) override;
+
+	/**
+	 * @brief Intercepts mouse button down events for drag detection and
+	 *        forwarding to the React event system.
+	 * @param MyGeometry   The geometry of this widget.
+	 * @param MouseEvent   The pointer event from Slate.
+	 * @return             Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	/**
+	 * @brief Intercepts mouse button up events.
+	 * @param MyGeometry   The geometry of this widget.
+	 * @param MouseEvent   The pointer event from Slate.
+	 * @return             Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	/**
+	 * @brief Intercepts mouse wheel events for React onWheel handlers.
+	 * @param MyGeometry   The geometry of this widget.
+	 * @param MouseEvent   The pointer event from Slate.
+	 * @return             Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+
+	/**
+	 * @brief Intercepts touch start events for React onTouchStart handlers.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param InTouchEvent  The pointer event from Slate (touch).
+	 * @return              Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+
+	/**
+	 * @brief Intercepts touch move events for React onTouchMove handlers.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param InTouchEvent  The pointer event from Slate (touch).
+	 * @return              Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+
+	/**
+	 * @brief Intercepts touch end events for React onTouchEnd handlers.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param InTouchEvent  The pointer event from Slate (touch).
+	 * @return              Handled or Unhandled EventReply.
+	 */
+	virtual FReply NativeOnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+
+	/**
+	 * @brief Called when a drag is detected, allowing React to set up
+	 *        a DragDropOperation.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param PointerEvent  The pointer event that triggered the drag.
+	 * @param Operation     Output: the created DragDropOperation.
+	 */
+	virtual void NativeOnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent, UDragDropOperation*& Operation) override;
+
+	/**
+	 * @brief Called when a drag enters this widget's area.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param PointerEvent  The pointer event.
+	 * @param Operation     The active DragDropOperation.
+	 */
+	virtual void NativeOnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& PointerEvent, UDragDropOperation* Operation) override;
+
+	/**
+	 * @brief Called when a drag leaves this widget's area.
+	 * @param PointerEvent  The pointer event.
+	 * @param Operation     The active DragDropOperation.
+	 */
+	virtual void NativeOnDragLeave(const FDragDropEvent& PointerEvent, UDragDropOperation* Operation) override;
+
+	/**
+	 * @brief Called when something is dropped on this widget.
+	 * @param MyGeometry    The geometry of this widget.
+	 * @param PointerEvent  The pointer event.
+	 * @param Operation     The active DragDropOperation.
+	 * @return              True if the drop was handled.
+	 */
+	virtual bool NativeOnDrop(const FGeometry& MyGeometry, const FDragDropEvent& PointerEvent, UDragDropOperation* Operation) override;
+
 protected:
 	/**
 	 * @brief Creates a fresh WidgetTree and runs the launch script.

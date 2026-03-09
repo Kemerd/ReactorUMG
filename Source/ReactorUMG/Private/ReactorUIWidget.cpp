@@ -11,6 +11,11 @@ UReactorUIWidget::UReactorUIWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), CustomJSArg(nullptr), LaunchScriptPath(TEXT("")),
 		JsEnv(nullptr), bWidgetTreeInitialized(false)
 {
+	/* Make this widget focusable so it can receive keyboard events
+	 * and participate in Slate's focus navigation system. The React
+	 * event dispatcher on the TS side handles routing key events
+	 * to the currently focused React component. */
+	bIsFocusable = true;
 }
 
 bool UReactorUIWidget::Initialize()
@@ -161,4 +166,121 @@ void UReactorUIWidget::ReleaseJsEnv()
 		FJsEnvRuntime::GetInstance().ReleaseJsEnv(JsEnv);
 		JsEnv = nullptr;
 	}
+}
+
+/* ====================================================================== */
+/*  Input Event Overrides                                                  */
+/*                                                                         */
+/*  These NativeOn* overrides intercept Slate input events at the          */
+/*  UserWidget level. They return Unhandled by default so that child       */
+/*  widgets (and Slate's normal routing) still work correctly. The React   */
+/*  event dispatcher on the TS side handles the actual event propagation   */
+/*  through the React component tree via Border/Button delegates.          */
+/*                                                                         */
+/*  For keyboard events specifically, these catch-all overrides ensure     */
+/*  that key events which bubble past all child widgets still reach the    */
+/*  React event system for components listening via onKeyDown/onKeyUp.     */
+/* ====================================================================== */
+
+FReply UReactorUIWidget::NativeOnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	/* Let the blueprint/parent implementation run first (handles
+	 * any user-defined Blueprint key bindings). */
+	FReply SuperReply = Super::NativeOnKeyDown(MyGeometry, InKeyEvent);
+	if (SuperReply.IsEventHandled())
+	{
+		return SuperReply;
+	}
+
+	/* Tab navigation: if the React event system handles Tab,
+	 * consume the event to prevent Slate's default focus shift. */
+	if (InKeyEvent.GetKey() == EKeys::Tab)
+	{
+		/* Tab handling is done on the TS side via routeTabKey().
+		 * We return Unhandled here and let the TS side decide. */
+	}
+
+	/* Return Unhandled so child widgets can still process keys.
+	 * The React event dispatcher receives key events via the
+	 * JS-side routeKeyEvent() function which is called from
+	 * the TS bridge when needed. */
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	FReply SuperReply = Super::NativeOnKeyUp(MyGeometry, InKeyEvent);
+	if (SuperReply.IsEventHandled())
+	{
+		return SuperReply;
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
+{
+	/* Accept focus so keyboard events can route to this widget */
+	return FReply::Handled();
+}
+
+void UReactorUIWidget::NativeOnFocusLost(const FFocusEvent& InFocusEvent)
+{
+	Super::NativeOnFocusLost(InFocusEvent);
+}
+
+FReply UReactorUIWidget::NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	/* Let the default routing handle mouse events via child widgets.
+	 * The React event dispatcher binds to Border/Button delegates
+	 * for mouse event interception at the component level. */
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent)
+{
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent)
+{
+	return FReply::Unhandled();
+}
+
+FReply UReactorUIWidget::NativeOnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent)
+{
+	return FReply::Unhandled();
+}
+
+void UReactorUIWidget::NativeOnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent, UDragDropOperation*& Operation)
+{
+	/* Drag detection is handled at the per-widget level through
+	 * the React event system. This override ensures the widget
+	 * participates in Slate's drag detection pipeline. */
+	Super::NativeOnDragDetected(MyGeometry, PointerEvent, Operation);
+}
+
+void UReactorUIWidget::NativeOnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& PointerEvent, UDragDropOperation* Operation)
+{
+	Super::NativeOnDragEnter(MyGeometry, PointerEvent, Operation);
+}
+
+void UReactorUIWidget::NativeOnDragLeave(const FDragDropEvent& PointerEvent, UDragDropOperation* Operation)
+{
+	Super::NativeOnDragLeave(PointerEvent, Operation);
+}
+
+bool UReactorUIWidget::NativeOnDrop(const FGeometry& MyGeometry, const FDragDropEvent& PointerEvent, UDragDropOperation* Operation)
+{
+	return Super::NativeOnDrop(MyGeometry, PointerEvent, Operation);
 }

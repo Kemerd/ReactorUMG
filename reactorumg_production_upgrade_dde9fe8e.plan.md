@@ -19,19 +19,19 @@ todos:
     status: pending
   - id: impl-listview
     content: Implement ListView component with virtualized rendering
-    status: pending
+    status: done
   - id: impl-treeview
     content: Implement TreeView component
-    status: pending
+    status: done
   - id: impl-tileview
     content: Implement TileView component
-    status: pending
+    status: done
   - id: impl-checkbox-radio
     content: Add checkbox and radio input type mappings in JSX converter
-    status: pending
+    status: done
   - id: impl-missing-tags
     content: Implement <a>, <label>, <video>, <audio> tag converters
-    status: pending
+    status: done
   - id: css-transitions
     content: Implement CSS transition and animation property interpolation
     status: pending
