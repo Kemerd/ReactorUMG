@@ -1,4 +1,4 @@
-﻿#include "AutoMixinEditor.h"
+#include "AutoMixinEditor.h"
 
 #include "BlueprintEditorModule.h"
 #include "ContentBrowserModule.h"
@@ -11,36 +11,35 @@
 
 #define LOCTEXT_NAMESPACE "FAutoMixinEditorModule"
 
-static const FString PUERTS_RESOURCES_PATH = FReactorUtils::GetPluginDir() / TEXT("Resources"); // Puerts资源路径
+static const FString PUERTS_RESOURCES_PATH = FReactorUtils::GetPluginDir() / TEXT("Resources");
 
 TSharedPtr<FSlateStyleSet> FAutoMixinEditorModule::StyleSet = nullptr;
 
-// 存储最后一个标签页
+// Stores the last foreground tab
 static TWeakPtr<SDockTab> LastForegroundTab = nullptr;
 
-// 标签切换事件句柄
+// Tab switch event delegate handle
 static FDelegateHandle TabForegroundedHandle;
 
-// 获取AssetEditorSubsystem
+// Editor subsystem reference
 static UAssetEditorSubsystem* AssetEditorSubsystem = nullptr;
 
-// 编辑器窗口
+// Editor window instance
 static IAssetEditorInstance* AssetEditorInstance = nullptr;
 
-// 最后激活的蓝图指针
+// Last active blueprint pointer
 static UBlueprint* LastBlueprint = nullptr;
 
 void FAutoMixinEditorModule::StartupModule()
 {
-	// 获取AssetEditorSubsystem
 	AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 
 	FMixinGenerator::InitMixinTSFile();
-	InitStyleSet(); // 初始化样式
-	RegistrationButton(); // 注册按键
-	RegistrationContextButton(); // 注册右键菜单
+	InitStyleSet();
+	RegistrationButton();
+	RegistrationContextButton();
 
-	// 订阅标签切换事件
+	// Subscribe to tab foreground change events
 	TabForegroundedHandle = FGlobalTabmanager::Get()->OnTabForegrounded_Subscribe(
 		FOnActiveTabChanged::FDelegate::CreateLambda([](const TSharedPtr<SDockTab>& NewlyActiveTab, const TSharedPtr<SDockTab>& PreviouslyActiveTab)
 		{
@@ -48,85 +47,76 @@ void FAutoMixinEditorModule::StartupModule()
 			{
 				return;
 			}
-			// 不等于主要的Tab（比如EventGraph，等图标）也返回
+			// Skip tabs that aren't MajorTabs (e.g. EventGraph sub-tabs)
 			if (NewlyActiveTab.Get()->GetTabRole() != MajorTab) return;
 			LastForegroundTab = NewlyActiveTab;
 			if (LastForegroundTab.IsValid())
 			{
-				// UE_LOG(LogTemp, Log, TEXT("标签页已切换: %s"), *LastForegroundTab.Pin().Get()->GetTabLabel().ToString());
+				// UE_LOG(LogTemp, Log, TEXT("Tab switched: %s"), *LastForegroundTab.Pin().Get()->GetTabLabel().ToString());
 			}
 		})
 	);
 }
 
-// 注册按键
 void FAutoMixinEditorModule::RegistrationButton() const
 {
-	// 获取蓝图编辑器模块
 	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 
-	// 创建一个菜单扩展器
 	const TSharedPtr<FExtender> MenuExtender = MakeShareable(new FExtender());
 
-	// 向工具栏添加扩展
+	// Extend the toolbar in the Debugging section, inserted at the front
 	MenuExtender->AddToolBarExtension(
-		"Debugging", // 扩展点名称（在调试工具栏区域）
-		EExtensionHook::First, // 插入位置（最前面）
-		nullptr, // 不使用命令列表
+		"Debugging",
+		EExtensionHook::First,
+		nullptr,
 		FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
 		{
-			// 添加工具栏按钮
 			ToolbarBuilder.AddToolBarButton(
-				FUIAction( // 按钮动作
-					FExecuteAction::CreateLambda([this]() // 点击时执行的lambda
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
 					{
-						ButtonPressed(); // 调用按钮点击处理函数
+						ButtonPressed();
 					})
 				),
-				NAME_None, // 没有命令名
-				LOCTEXT("GenerateTemplate", "创建TS文件"), // 按钮显示文本
-				LOCTEXT("GenerateTemplateTooltip", "生成TypeScript文件"), // 按钮提示文本
-				FSlateIcon(GetStyleName(), "MixinIcon") // 按钮图标（这里使用空图标）
+				NAME_None,
+				LOCTEXT("GenerateTemplate", "Create TS File"),
+				LOCTEXT("GenerateTemplateTooltip", "Generate TypeScript File"),
+				FSlateIcon(GetStyleName(), "MixinIcon")
 			);
 		})
 	);
 
-	// 将扩展器添加到蓝图编辑器的菜单扩展管理器
 	BlueprintEditorModule.GetMenuExtensibilityManager()->AddExtender(MenuExtender);
 }
 
-// 在内容浏览器右键的时候注册一个按键
+// Register a context menu entry in the Content Browser for selected assets
 void FAutoMixinEditorModule::RegistrationContextButton() const
 {
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 	TArray<FContentBrowserMenuExtender_SelectedAssets>& CBMenuAssetExtenderDelegates = ContentBrowserModule.GetAllAssetViewContextMenuExtenders();
 
-	// 创建菜单扩展委托
 	FContentBrowserMenuExtender_SelectedAssets MenuExtenderDelegate;
 	MenuExtenderDelegate.BindLambda([this](const TArray<FAssetData>& SelectedAssets)
 	{
 		TSharedRef<FExtender> Extender = MakeShared<FExtender>();
 
 		Extender->AddMenuExtension(
-			"GetAssetActions", // 扩展菜单的锚点位置
-			EExtensionHook::After, // 在指定锚点之后插入
-			nullptr, // 无命令列表
+			"GetAssetActions",
+			EExtensionHook::After,
+			nullptr,
 			FMenuExtensionDelegate::CreateLambda([this, SelectedAssets](FMenuBuilder& MenuBuilder)
 			{
-				// 添加菜单项
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("GenerateTSFile", "创建TS文件"), // 菜单文本
-					LOCTEXT("GenerateTSFileTooltip", "生成TypeScript文件"), // 提示信息
-					FSlateIcon(GetStyleName(), "MixinIcon"), // 使用自定义图标
+					LOCTEXT("GenerateTSFile", "Create TS File"),
+					LOCTEXT("GenerateTSFileTooltip", "Generate TypeScript File"),
+					FSlateIcon(GetStyleName(), "MixinIcon"),
 					FUIAction(
 						FExecuteAction::CreateLambda([this, SelectedAssets]()
 						{
-							// 点击时处理选中的资源
 							ContextButtonPressed(SelectedAssets);
 						}),
 						FCanExecuteAction::CreateLambda([SelectedAssets]()
 						{
-							// 可选：验证是否允许执行（例如至少选中一个资产）
 							return SelectedAssets.Num() > 0;
 						})
 					)
@@ -136,12 +126,10 @@ void FAutoMixinEditorModule::RegistrationContextButton() const
 		return Extender;
 	});
 
-	// 注册扩展委托
 	CBMenuAssetExtenderDelegates.Add(MenuExtenderDelegate);
 }
 
 
-// 当按钮被按下时调用此函数
 void FAutoMixinEditorModule::ButtonPressed()
 {
 	// UE_LOG(LogTemp, Log, TEXT("ButtonPressed"));
@@ -150,11 +138,9 @@ void FAutoMixinEditorModule::ButtonPressed()
 
 void FAutoMixinEditorModule::ContextButtonPressed(const TArray<FAssetData>& SelectedAssets)
 {
-	// 确保至少有一个资产被选中
 	if (SelectedAssets.IsEmpty()) return;
 	for (const FAssetData& AssetData : SelectedAssets)
 	{
-		// 获取选中的蓝图
 		if (const UBlueprint* Blueprint = Cast<UBlueprint>(AssetData.GetAsset()))
 		{
 			FMixinGenerator::GenerateBPMixinFile(Blueprint);
@@ -163,16 +149,15 @@ void FAutoMixinEditorModule::ContextButtonPressed(const TArray<FAssetData>& Sele
 }
 
 /**
- * @brief 获取当前激活的蓝图
+ * @brief Retrieves the currently active Blueprint.
  *
- * 遍历所有被编辑的资产，找到与最后前景标签匹配的活动蓝图。
- * 如果找到匹配的蓝图，则将其记录为最后激活的蓝图并返回。
+ * Iterates over all edited assets and finds the one whose editor tab
+ * matches the last foregrounded tab.
  *
- * @return 当前激活的蓝图对象，如果未找到则返回nullptr
+ * @return The active Blueprint, or nullptr if none was found.
  */
 UBlueprint* FAutoMixinEditorModule::GetActiveBlueprint()
 {
-	// 遍历所有被编辑的资产 并找到活动蓝图
 	const TArray<UObject*> EditedAssets = AssetEditorSubsystem->GetAllEditedAssets(); 
 	for (UObject* EditedAsset : EditedAssets)
 	{
@@ -190,7 +175,6 @@ UBlueprint* FAutoMixinEditorModule::GetActiveBlueprint()
 		}
 	}
 
-	// 返回最后激活的蓝图
 	return LastBlueprint;
 }
 
@@ -200,31 +184,26 @@ FName FAutoMixinEditorModule::GetStyleName()
 }
 
 /**
- * 初始化样式集合
- * 
- * 本函数负责初始化或重新初始化FAutoMixinEditorModule的样式集合
- * 它首先检查当前样式集合是否有效，如果有效，则从Slate样式注册表中注销该样式集合并重置
- * 然后，创建一个新的样式集合，设置必要的样式信息，并在Slate样式注册表中注册这个新的样式集合
+ * @brief Initialises (or re-initialises) the Slate style set.
+ *
+ * Unregisters the existing style set if present, then creates a fresh
+ * one containing the MixinIcon brush and registers it with Slate.
  */
 void FAutoMixinEditorModule::InitStyleSet()
 {
-	// 如果当前样式集合仍然有效，则注销并重置样式集合
+	// Unregister and reset if the style set already exists
 	if (StyleSet.IsValid())
 	{
 		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet);
 		StyleSet.Reset();
 	}
 
-	// 创建一个新的样式集合，并指定其名称
 	StyleSet = MakeShared<FSlateStyleSet>(GetStyleName());
 
-	// 定义图标路径，从项目插件目录下指定子路径到达资源目录
 	const FString IconPath = PUERTS_RESOURCES_PATH / TEXT("CreateFilecon.png");
-
-	// 在样式集合中设置一个名为"MixinIcon"的图标，使用指定路径下的图像文件
 	StyleSet->Set("MixinIcon", new FSlateImageBrush(IconPath, FVector2D(40, 40)));
 
-	// 在Slate样式注册表中注册新的样式集合
+	// Register the new style set with the Slate style registry
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet);
 }
 
@@ -237,7 +216,7 @@ void FAutoMixinEditorModule::ShutdownModule()
 		StyleSet.Reset();
 	}
 
-	// 取消订阅标签切换事件
+	// Unsubscribe from the tab foreground change event
 	FGlobalTabmanager::Get()->OnTabForegrounded_Unsubscribe(TabForegroundedHandle);
 }
 

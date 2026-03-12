@@ -28,19 +28,19 @@ FString FMixinGenerator::ProcessTemplate(const FString& TemplateContent, FString
 	FString Result = TemplateContent;
 	FString ProjectName = FApp::GetProjectName();
 	
-	// 获取蓝图完整类名（包括_C后缀）
+	// Get full Blueprint class name (with _C suffix)
 	BlueprintPath += TEXT("_C");
 	const FString BlueprintClass = TEXT("UE") + BlueprintPath.Replace(TEXT("/"), TEXT("."));
 
-	const FString BLUEPRINT_PATH = TEXT("BLUEPRINT_PATH"); // 蓝图路径
-	const FString MIXIN_BLUEPRINT_TYPE = TEXT("MIXIN_BLUEPRINT_TYPE"); // 混入蓝图类型
-	const FString TS_NAME = TEXT("TS_NAME"); // TS文件名
+	const FString BLUEPRINT_PATH = TEXT("BLUEPRINT_PATH");
+	const FString MIXIN_BLUEPRINT_TYPE = TEXT("MIXIN_BLUEPRINT_TYPE");
+	const FString TS_NAME = TEXT("TS_NAME");
 	const FString PROJECT_NAME = TEXT("PROJECT_NAME");
 
-	Result = Result.Replace(*BLUEPRINT_PATH, *BlueprintPath); // 替换 蓝图路径
-	Result = Result.Replace(*MIXIN_BLUEPRINT_TYPE, *BlueprintClass); // 替换 混入蓝图类型
-	Result = Result.Replace(*TS_NAME, *FileName); // 替换 TS文件名
-	Result = Result.Replace(*PROJECT_NAME, *ProjectName); // 替换 项目名
+	Result = Result.Replace(*BLUEPRINT_PATH, *BlueprintPath);
+	Result = Result.Replace(*MIXIN_BLUEPRINT_TYPE, *BlueprintClass);
+	Result = Result.Replace(*TS_NAME, *FileName);
+	Result = Result.Replace(*PROJECT_NAME, *ProjectName);
 
 	return Result;
 }
@@ -52,36 +52,35 @@ void FMixinGenerator::GenerateBPMixinFile(const UBlueprint* Blueprint)
 		return;
 	}
 	
-	// 获取蓝图的路径名称
 	const FString BlueprintPath = Blueprint->GetPathName();
 	FString Lefts, Rights;
 	BlueprintPath.Split(".", &Lefts, &Rights);
 
-	// ts文件路径
-	FString TsFilePath = FReactorUtils::GetGamePlayTSHomeDir() + Lefts.Mid(5) /* 排除掉/Game */ + TEXT(".ts");
+	// TypeScript file path
+	FString TsFilePath = FReactorUtils::GetGamePlayTSHomeDir() + Lefts.Mid(5) /* exclude /Game */ + TEXT(".ts");
 
-	// 如果ts文件不存在，则创建它
+	// Skip if TS file already exists
 	if (FPaths::FileExists(TsFilePath))
 	{
 		return;
 	}
 
-	// 解析蓝图路径以获取文件名
+	// Parse Blueprint path to get filename
 	TArray<FString> StringArray;
 	Rights.ParseIntoArray(StringArray, TEXT("/"), false);
 	const FString FileName = StringArray[StringArray.Num() - 1];
 
-	// 读取模板文件
+	// Read template file
 	FString TemplateContent;
 	if (FFileHelper::LoadFileToString(TemplateContent, *MixinTemplateFilePath))
 	{
-		// 处理模板并生成ts文件内容
+		// Process template and generate TS file content
 		const FString TsContent = ProcessTemplate(TemplateContent, BlueprintPath, FileName);
-		// 保存生成的内容到文件
+		// Save generated content to file
 		if (FFileHelper::SaveStringToFile(TsContent, *TsFilePath, FFileHelper::EEncodingOptions::ForceUTF8))
 		{
-			// 显示通知
-			FNotificationInfo Info(FText::Format(NSLOCTEXT("MiXinGenerator", "TsFileGenerated", "TS文件生成成功->路径{0}"), FText::FromString(TsFilePath)));
+			// Show notification
+			FNotificationInfo Info(FText::Format(NSLOCTEXT("MiXinGenerator", "TsFileGenerated", "TS file generated successfully -> {0}"), FText::FromString(TsFilePath)));
 			Info.ExpireDuration = 5.f;
 			FSlateNotificationManager::Get().AddNotification(Info);
 			
@@ -93,19 +92,19 @@ void FMixinGenerator::GenerateBPMixinFile(const UBlueprint* Blueprint)
 				{
 					MainGameTsContent += TEXT("import \"."+TsPath + "\";\n");
 					FFileHelper::SaveStringToFile(MainGameTsContent, *StartGameTSFilePath, FFileHelper::EEncodingOptions::ForceUTF8);
-					UE_LOG(LogTemp, Log, TEXT("MainGame.ts更新成功"));
+					UE_LOG(LogTemp, Log, TEXT("MainGame.ts updated successfully"));
 				}
 			} else
 			{
 				MainGameTsContent += TEXT("import \"."+ Lefts.Mid(5) + "\";\n");
 				FFileHelper::SaveStringToFile(MainGameTsContent, *StartGameTSFilePath, FFileHelper::EEncodingOptions::ForceUTF8);
-				UE_LOG(LogTemp, Log, TEXT("MainGame.ts更新成功"));
+				UE_LOG(LogTemp, Log, TEXT("MainGame.ts updated successfully"));
 			}
 		}
 	}
 	else
 	{
-		// 如果模板文件不存在，记录警告
-		UE_LOG(LogTemp, Warning, TEXT("MixinTemplate.ts不存在"));
+		// Log warning if template file doesn't exist
+		UE_LOG(LogTemp, Warning, TEXT("MixinTemplate.ts does not exist"));
 	}
 }

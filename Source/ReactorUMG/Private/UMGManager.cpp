@@ -291,14 +291,14 @@ void UUMGManager::LoadBrushImageObject(const FString& ImagePath, FAssetLoadedDel
 {
     if (ImagePath.StartsWith(TEXT("/")))
     {
-        // 处理UE资产包路径 
+        // Handle UE asset package paths
         LoadImageBrushAsset(ImagePath, Context, bIsSyncLoad, OnLoaded, OnFailed);
         return;
     }
 
     if (ImagePath.StartsWith(TEXT("http")) || ImagePath.StartsWith(TEXT("HTTP")))
     {
-        // 处理网络资源
+        // Handle network resources
         LoadImageTextureFromURL(ImagePath, Context, bIsSyncLoad, OnLoaded, OnFailed);
         return;
     }
@@ -323,7 +323,7 @@ FString UUMGManager::GetAbsoluteJSContentPath(const FString& RelativePath, const
     FString AbsolutePath = RelativePath;
     if (FPaths::IsRelative(RelativePath))
     {
-        // 处理相对路径的情况
+        // Handle relative path case
         AbsolutePath = FPaths::ConvertRelativePathToFull(DirName / RelativePath);
     }
     
@@ -512,10 +512,10 @@ FVector2D UUMGManager::GetWidgetScreenPixelSize(UWidget* Widget, bool bReturnInL
         return FVector2D::ZeroVector;
     }
 
-    // 注意：首次 AddToViewport 的同帧，几何体还未完成布局，尺寸可能为零。
+    // Note: On the same frame as first AddToViewport, geometry may not be laid out yet, size could be zero.
     const FGeometry& Geo = Widget->GetCachedGeometry();
 
-    // 方式A：用布局边界（绝对/桌面空间）
+    // Method A: Use layout bounding rect (absolute/desktop space)
     const FSlateRect Rect = Geo.GetLayoutBoundingRect();
     FVector2D SizePixels(Rect.Right - Rect.Left, Rect.Bottom - Rect.Top);
 

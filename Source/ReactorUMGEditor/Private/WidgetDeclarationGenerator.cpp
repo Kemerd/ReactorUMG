@@ -266,11 +266,11 @@ void FReactDeclarationGenerator::GenClass(UClass* Class)
         if (!IsReactSupportProperty(Property))
             continue;
 
-		//UE.27上遇到一个问题,
-        //引擎内置蓝图DefaultBurnIn有个FLinearColor类型的变量Foreground Color,
-        //并且父类UUserWidget有个FSlateColor类型的变量ForegroundColor
-        //此处SafeName去掉空格导致interface写入了父类变量名字,类型对不上,有报错,仅此一例
-        //PuerTS插件DeclarationGenerator.cpp中的SafeName存在同样隐患
+		// UE 5.27 issue:
+        // Engine built-in Blueprint DefaultBurnIn has an FLinearColor variable "Foreground Color",
+        // and parent class UUserWidget has an FSlateColor variable "ForegroundColor".
+        // SafeName removes spaces, causing interface to write parent class variable name with wrong type.
+        // This is the only known case. PuerTS plugin DeclarationGenerator.cpp has the same SafeName hazard.
         FString PropertyNameSafe = SafeName(Property->GetName());
         UClass* SuperClass = Class->GetSuperClass();
         if (PropertyNameSafe != Property->GetName() &&

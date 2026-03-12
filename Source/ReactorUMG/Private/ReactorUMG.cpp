@@ -6,7 +6,7 @@
 
 void FReactorUMGModule::StartupModule()
 {
-	// todo@Caleb196x: 生成types文件
+	// TODO@Caleb196x: Generate types file
 }
 
 void FReactorUMGModule::ShutdownModule()

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "CoreMinimal.h"
 #include "WidgetBlueprint.h"
 #include "ReactorUMGCommonBP.h"
@@ -10,8 +10,8 @@ class REACTORUMGEDITOR_API UReactorUMGWidgetBlueprint : public UWidgetBlueprint
 	GENERATED_UCLASS_BODY()
 public:
 	/**
-	* 1. 在AssetEditorSubsystem的OnAssetOpenedInEditor事件中触发监听模式
-	* 2. 在在AssetEditorSubsystem的OnAssetClosedInEditor事件中结束监听模式
+	 * 1. Triggered in AssetEditorSubsystem's OnAssetOpenedInEditor event to start monitoring mode
+	 * 2. Ended in AssetEditorSubsystem's OnAssetClosedInEditor event to stop monitoring mode
 	 */
 	void SetupMonitorForTsScripts();
 	void SetupTsScripts(const FReactorUMGCompilerLog& CompilerResultsLogger, bool bForceCompile = false, bool bForceReload = false);

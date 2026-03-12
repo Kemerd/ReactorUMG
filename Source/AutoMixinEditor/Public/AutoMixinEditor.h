@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
@@ -10,34 +10,35 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	// 注册按键
+	/** Registers a toolbar button in the Blueprint Editor. */
 	void RegistrationButton() const;
-	// 按键按下
+
+	/** Handles the toolbar button press. */
 	static void ButtonPressed();
-	// 获取当前激活的Blueprint
+
+	/** Returns the currently active Blueprint in the editor. */
 	static UBlueprint* GetActiveBlueprint();
 
-	// 在内容浏览器右键注册一个按键
+	/** Registers a context menu entry in the Content Browser. */
 	void RegistrationContextButton() const;
 
 	/**
-	 * @brief 菜单按钮按下
-	 * @param SelectedAssets	选中的资产 
+	 * @brief Handles the context menu button press.
+	 * @param SelectedAssets  The assets selected in the Content Browser.
 	 */
 	static void ContextButtonPressed(const TArray<FAssetData>& SelectedAssets);
 	
-	// 样式名称
+	/** Returns the name of the Slate style set used by this module. */
 	static FName GetStyleName();
 
 	/**
-	* 初始化样式集合
-	* 
-	* 本函数负责初始化或重新初始化FAutoMixinEditorModule的样式集合
-	* 它首先检查当前样式集合是否有效，如果有效，则从Slate样式注册表中注销该样式集合并重置
-	 * 然后，创建一个新的样式集合，设置必要的样式信息，并在Slate样式注册表中注册这个新的样式集合
-	*/
+	 * @brief Initialises (or re-initialises) the Slate style set.
+	 *
+	 * Unregisters any existing style set, creates a fresh one with the
+	 * MixinIcon brush, and registers it with the Slate style registry.
+	 */
 	static void InitStyleSet();
 
-	// 样式
+	/** Slate style set instance. */
 	static TSharedPtr<FSlateStyleSet> StyleSet;
 };

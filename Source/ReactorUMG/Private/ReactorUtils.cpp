@@ -18,20 +18,20 @@ bool FReactorUtils::CopyDirectoryRecursive(const FString& SrcDir, const FString&
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-	// 创建目标目录
+	// Create destination directory
 	if (!PlatformFile.CreateDirectoryTree(*DestDir))
 	{
 		UE_LOG(LogReactorUMG, Error, TEXT("Failed to create destination directory: %s"), *DestDir);
 		return false;
 	}
 
-	// 遍历源目录
+	// Iterate through source directory
 	TArray<FString> FileNames;
 	PlatformFile.FindFilesRecursively(FileNames, *SrcDir, TEXT(""));
 
 	for (FString& SourcePath : FileNames)
 	{
-		// 构建目标路径
+		// Build destination path
 		FString RelativePath = SourcePath;
 		FPaths::MakePathRelativeTo(RelativePath, *SrcDir);
 		FString DestPath = FPaths::Combine(*DestDir, *RelativePath);
@@ -42,14 +42,14 @@ bool FReactorUtils::CopyDirectoryRecursive(const FString& SrcDir, const FString&
 			continue;
 		}
 
-		// 创建目标子目录
+		// Create destination subdirectory
 		FString DestSubDir = FPaths::GetPath(DestPath);
 		if (!PlatformFile.DirectoryExists(*DestSubDir))
 		{
 			PlatformFile.CreateDirectoryTree(*DestSubDir);
 		}
 
-		// 执行文件拷贝
+		// Copy file
 		if (!PlatformFile.CopyFile(*DestPath, *SourcePath))
 		{ 
 			UE_LOG(LogReactorUMG, Warning, TEXT("Failed to copy file: %s"), *SourcePath);
@@ -101,7 +101,7 @@ bool FReactorUtils::DeleteDirectoryRecursive(const FString& DirPath)
 	
 	if (PlatformFile.DirectoryExists(*DirPath))
 	{
-		// 删除目录及其内容
+		// Delete directory and its contents
 		return PlatformFile.DeleteDirectoryRecursively(*DirPath);
 	}
 	
@@ -198,13 +198,13 @@ FString FReactorUtils::ConvertRelativePathToFullUsingTSConfig(const FString& Rel
             FString TSConfigPath = FPaths::Combine(CurrentDir, TEXT("tsconfig.json"));
             if (FPaths::FileExists(TSConfigPath))
             {
-                return TSConfigPath; // 找到文件，返回路径
+                return TSConfigPath; // Found file, return path
             }
-            // 向上回溯到父目录
+            // Move up to parent directory
             CurrentDir = FPaths::GetPath(CurrentDir);
         }
         
-        return FString(); // 没有找到，返回空字符串
+        return FString(); // Not found, return empty string
     };
 
 	FString Result = FPaths::ConvertRelativePathToFull(DirName / RelativePath);
@@ -305,7 +305,7 @@ bool FReactorUtils::RunCommandWithProcess(const FString& Command, const FString&
 			LogOutBuffer += LogString;
 		}
 		
-		// TODO@Caleb196x: 提取出编译日志
+		// TODO@Caleb196x: Extract compilation logs
 		int NewLineCount = LogString.Len() - LogString.Replace(TEXT("\n"), TEXT("")).Len();
 
 		SlowTask->CompletedWork = NewLineCount;

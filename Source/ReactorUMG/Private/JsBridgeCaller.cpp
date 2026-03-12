@@ -1,4 +1,4 @@
-﻿#include "JsBridgeCaller.h"
+#include "JsBridgeCaller.h"
 #include "LogReactorUMG.h"
 
 TMap<FString, UJsBridgeCaller*> UJsBridgeCaller::SelfHolder = {};
@@ -31,10 +31,10 @@ void PrintSelfHolder(const TMap<FString, UJsBridgeCaller*>& SelfHolder)
 {
 	UE_LOG(LogReactorUMG, Log, TEXT("===== TMap Contents map address %p ====="), &SelfHolder);
     
-	// 使用C++11范围for循环遍历
+	// Iterate using C++11 range-based for loop
 	for (const auto& KeyValuePair : SelfHolder)
 	{
-		// 将指针地址转换为十六进制字符串
+		// Convert pointer address to hexadecimal string
 		const uint64 PointerAddress = reinterpret_cast<uint64>(KeyValuePair.Value);
 		const FString PointerString = FString::Printf(TEXT("0x%016llX"), PointerAddress);
 

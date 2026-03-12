@@ -1,4 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 #include "ReactorUMGCommonBP.h"
 
 #include "DirectoryWatcherModule.h"
@@ -502,11 +502,11 @@ void UReactorUMGCommonBP::BuildAllNeedPaths(const FString& InWidgetName, const F
 
 	if (HomePrefix.IsEmpty())
 	{
-		TsScriptHomeFullDir = FPaths::Combine(FReactorUtils::GetGamePlayTSHomeDir(), Lefts.Mid(5) /* 排除/Game */);
+		TsScriptHomeFullDir = FPaths::Combine(FReactorUtils::GetGamePlayTSHomeDir(), Lefts.Mid(5) /* exclude /Game */);
 		TsScriptHomeRelativeDir = TEXT("src/") + ProjectName + Lefts.Mid(5);
 	} else
 	{
-		TsScriptHomeFullDir = FPaths::Combine(FReactorUtils::GetGamePlayTSHomeDir(), HomePrefix, Lefts.Mid(5) /* 排除/Game */);
+		TsScriptHomeFullDir = FPaths::Combine(FReactorUtils::GetGamePlayTSHomeDir(), HomePrefix, Lefts.Mid(5) /* exclude /Game */);
 		TsScriptHomeRelativeDir =  FString::Printf(TEXT("src/%s/%s%s"), *ProjectName, *HomePrefix, *Lefts.Mid(5));
 	}
 	 

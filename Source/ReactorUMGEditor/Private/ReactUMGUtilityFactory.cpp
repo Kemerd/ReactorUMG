@@ -19,7 +19,7 @@ UReactUMGUtilityFactory::UReactUMGUtilityFactory(const FObjectInitializer& Objec
 
 UObject* UReactUMGUtilityFactory::FactoryCreateNew(UClass* Class, UObject* Parent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
-	// TODO@Caleb196x: 检查用于是否安装yarn, tsc, npm等必须依赖环境，否则禁止创建ReactorUMG蓝图类，并给出安装提示
+	// TODO@Caleb196x: Check if yarn, tsc, npm and other required dependencies are installed, otherwise prevent creating ReactorUMG Blueprint class and show installation prompt
 	check(Class->IsChildOf(UEditorUtilityWidgetBlueprint::StaticClass()));
 	
 	if ((ParentClass == nullptr) || !FKismetEditorUtilities::CanCreateBlueprintOfClass(ParentClass))
