@@ -114,13 +114,15 @@ void UUMGManager::FlushBatchedSync()
 }
 
 // ===================================================================
-//  Spine asset loading (only compiled when SpinePlugin is present)
+//  Spine asset loading
+//
+//  Declarations are always present (UHT requirement), but the
+//  implementations are no-ops when SpinePlugin is absent.
 // ===================================================================
 
-#if WITH_SPINE_PLUGIN
-
-USpineAtlasAsset* UUMGManager::LoadSpineAtlas(UObject* Context, const FString& AtlasPath, const FString& DirName)
+UObject* UUMGManager::LoadSpineAtlas(UObject* Context, const FString& AtlasPath, const FString& DirName)
 {
+#if WITH_SPINE_PLUGIN
     FString RawData;
     const FString AssetFilePath = ProcessAssetFilePath(AtlasPath, DirName);
     if (!FFileHelper::LoadFileToString(RawData, *AssetFilePath))
@@ -151,10 +153,15 @@ USpineAtlasAsset* UUMGManager::LoadSpineAtlas(UObject* Context, const FString& A
     }
     
     return SpineAtlasAsset;
+#else
+    UE_LOG(LogReactorUMG, Warning, TEXT("LoadSpineAtlas called but SpinePlugin is not available"));
+    return nullptr;
+#endif // WITH_SPINE_PLUGIN
 }
 
-USpineSkeletonDataAsset* UUMGManager::LoadSpineSkeleton(UObject* Context, const FString& SkeletonPath, const FString& DirName)
+UObject* UUMGManager::LoadSpineSkeleton(UObject* Context, const FString& SkeletonPath, const FString& DirName)
 {
+#if WITH_SPINE_PLUGIN
     TArray<uint8> RawData;
     const FString AssetFilePath = ProcessAssetFilePath(SkeletonPath, DirName);
     if (!FFileHelper::LoadFileToArray(RawData, *AssetFilePath, 0))
@@ -172,9 +179,11 @@ USpineSkeletonDataAsset* UUMGManager::LoadSpineSkeleton(UObject* Context, const 
     SkeletonDataAsset->SetRawData(RawData);
 
     return SkeletonDataAsset;
-}
-
+#else
+    UE_LOG(LogReactorUMG, Warning, TEXT("LoadSpineSkeleton called but SpinePlugin is not available"));
+    return nullptr;
 #endif // WITH_SPINE_PLUGIN
+}
 
 // ===================================================================
 //  Rive asset loading (only compiled when Rive support is present)

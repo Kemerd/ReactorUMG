@@ -128,30 +128,38 @@ public:
     static void FlushBatchedSync();
 
     // ---------------------------------------------------------------
-    //  Spine asset loading (conditionally compiled)
+    //  Spine asset loading
+    //
+    //  UHT forbids UFUNCTION inside arbitrary #if blocks, so these
+    //  are always declared. When WITH_SPINE_PLUGIN == 0 the
+    //  implementations simply return nullptr.
     // ---------------------------------------------------------------
 
-#if WITH_SPINE_PLUGIN
     /**
      * @brief Load a Spine skeleton data asset from disk.
+     *
+     * Returns nullptr when the SpinePlugin module is not present.
+     *
      * @param Context       Outer object for lifecycle management.
      * @param SkeletonPath  Relative or absolute path to the skeleton file.
      * @param DirName       Base directory for relative path resolution.
-     * @return              The loaded USpineSkeletonDataAsset, or nullptr.
+     * @return              The loaded asset as UObject*, or nullptr.
      */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Widget|Spine")
-	static USpineSkeletonDataAsset* LoadSpineSkeleton(UObject* Context, const FString& SkeletonPath, const FString& DirName);
+	static UObject* LoadSpineSkeleton(UObject* Context, const FString& SkeletonPath, const FString& DirName);
 
     /**
      * @brief Load a Spine atlas asset (texture pages included) from disk.
+     *
+     * Returns nullptr when the SpinePlugin module is not present.
+     *
      * @param Context    Outer object for lifecycle management.
      * @param AtlasPath  Relative or absolute path to the atlas file.
      * @param DirName    Base directory for relative path resolution.
-     * @return           The loaded USpineAtlasAsset, or nullptr.
+     * @return           The loaded asset as UObject*, or nullptr.
      */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Widget|Spine")
-	static USpineAtlasAsset* LoadSpineAtlas(UObject* Context, const FString& AtlasPath, const FString& DirName);
-#endif // WITH_SPINE_PLUGIN
+	static UObject* LoadSpineAtlas(UObject* Context, const FString& AtlasPath, const FString& DirName);
 
     // ---------------------------------------------------------------
     //  World / viewport queries
