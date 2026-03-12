@@ -255,6 +255,56 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget|ReactorUMG")
 	static FVector2D GetCanvasSizeDIP(UObject* WorldContextObject);
 
+    // ---------------------------------------------------------------
+    //  Runtime gradient texture generation
+    // ---------------------------------------------------------------
+
+    /**
+     * @brief Create a runtime texture filled with a linear gradient.
+     *
+     * Generates a UTexture2D in memory with the specified dimensions, filled
+     * with a linear gradient defined by an angle (in degrees) and a set of
+     * color stops. Each stop is a pair of (color, position) where position
+     * is a float 0..1. The texture is transient and not saved to disk.
+     *
+     * @param Context       Outer object for lifecycle management.
+     * @param AngleDegrees  Gradient angle in degrees (0 = bottom-to-top, 90 = left-to-right).
+     * @param Colors        Array of stop colors as FLinearColor.
+     * @param Positions     Array of stop positions (0..1), must match Colors length.
+     * @param Width         Texture width in pixels (clamped to 1..2048).
+     * @param Height        Texture height in pixels (clamped to 1..2048).
+     * @return              A transient UTexture2D with the gradient, or nullptr on failure.
+     */
+    UFUNCTION(BlueprintCallable, Category="Widget|ReactorUMG")
+    static UTexture2D* CreateLinearGradientTexture(
+        UObject* Context,
+        float AngleDegrees,
+        const TArray<FLinearColor>& Colors,
+        const TArray<float>& Positions,
+        int32 Width = 256,
+        int32 Height = 256);
+
+    /**
+     * @brief Create a runtime texture filled with a radial gradient.
+     *
+     * Generates a UTexture2D with a radial (circular) gradient originating
+     * from the center of the texture, transitioning outward to the edges.
+     *
+     * @param Context    Outer object for lifecycle management.
+     * @param Colors     Array of stop colors as FLinearColor.
+     * @param Positions  Array of stop positions (0..1), must match Colors length.
+     * @param Width      Texture width in pixels (clamped to 1..2048).
+     * @param Height     Texture height in pixels (clamped to 1..2048).
+     * @return           A transient UTexture2D with the gradient, or nullptr on failure.
+     */
+    UFUNCTION(BlueprintCallable, Category="Widget|ReactorUMG")
+    static UTexture2D* CreateRadialGradientTexture(
+        UObject* Context,
+        const TArray<FLinearColor>& Colors,
+        const TArray<float>& Positions,
+        int32 Width = 256,
+        int32 Height = 256);
+
 private:
 	/** Resolve a relative asset path using DirName or tsconfig.json paths. */
 	static FString ProcessAssetFilePath(const FString& RelativePath, const FString& DirName);

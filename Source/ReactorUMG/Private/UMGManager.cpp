@@ -538,3 +538,188 @@ FVector2D UUMGManager::GetCanvasSizeDIP(UObject* WorldContextObject)
     const float Scale = UWidgetLayoutLibrary::GetViewportScale(WorldContextObject);
     return ViewportSizePx / FMath::Max(Scale, 0.0001f);
 }
+
+// ===================================================================
+//  Runtime gradient texture generation
+//
+//  Generates transient UTexture2D objects filled with gradients via
+//  direct pixel writes. The textures are BGRA8 format for maximum
+//  Slate/UMG compatibility. They are RF_Transient so they are never
+//  serialized or saved to disk.
+// ===================================================================
+
+/**
+ * Helper: interpolates between color stops at position t (0..1).
+ * Assumes Positions is sorted ascending and Colors.Num() == Positions.Num().
+ */
+static FLinearColor SampleGradient(
+    const TArray<FLinearColor>& Colors,
+    const TArray<float>& Positions,
+    float t)
+{
+    if (Colors.Num() == 0)
+    {
+        return FLinearColor::Black;
+    }
+    if (Colors.Num() == 1 || t <= Positions[0])
+    {
+        return Colors[0];
+    }
+    if (t >= Positions.Last())
+    {
+        return Colors.Last();
+    }
+
+    /* Find the two surrounding stops */
+    for (int32 i = 0; i < Positions.Num() - 1; ++i)
+    {
+        if (t >= Positions[i] && t <= Positions[i + 1])
+        {
+            const float Range = Positions[i + 1] - Positions[i];
+            const float LocalT = (Range > SMALL_NUMBER) ? (t - Positions[i]) / Range : 0.f;
+            return FMath::Lerp(Colors[i], Colors[i + 1], LocalT);
+        }
+    }
+
+    return Colors.Last();
+}
+
+UTexture2D* UUMGManager::CreateLinearGradientTexture(
+    UObject* Context,
+    float AngleDegrees,
+    const TArray<FLinearColor>& Colors,
+    const TArray<float>& Positions,
+    int32 Width,
+    int32 Height)
+{
+    if (Colors.Num() == 0 || Colors.Num() != Positions.Num())
+    {
+        UE_LOG(LogReactorUMG, Warning, TEXT("CreateLinearGradientTexture: Colors/Positions mismatch or empty"));
+        return nullptr;
+    }
+
+    Width  = FMath::Clamp(Width,  1, 2048);
+    Height = FMath::Clamp(Height, 1, 2048);
+
+    /* Create a transient texture in BGRA8 format */
+    UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+    if (!Texture)
+    {
+        return nullptr;
+    }
+
+    Texture->MipGenSettings     = TMGS_NoMipmaps;
+    Texture->CompressionSettings = TC_EditorIcon;
+    Texture->SRGB               = true;
+    Texture->Filter             = TF_Bilinear;
+    Texture->AddressX           = TA_Clamp;
+    Texture->AddressY           = TA_Clamp;
+
+    /* CSS gradient angle: 0deg = bottom-to-top, 90deg = left-to-right.
+     * Convert to a direction vector. */
+    const float AngleRad = FMath::DegreesToRadians(AngleDegrees);
+    const float DirX = FMath::Sin(AngleRad);
+    const float DirY = -FMath::Cos(AngleRad); // negative because pixel Y goes downward
+
+    /* Lock mip 0 and fill pixels */
+    FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
+    void* RawData = Mip.BulkData.Lock(LOCK_READ_WRITE);
+    uint8* Pixels = static_cast<uint8*>(RawData);
+
+    for (int32 Y = 0; Y < Height; ++Y)
+    {
+        for (int32 X = 0; X < Width; ++X)
+        {
+            /* Normalized coordinates 0..1 */
+            const float NX = (Width  > 1) ? static_cast<float>(X) / (Width  - 1) : 0.5f;
+            const float NY = (Height > 1) ? static_cast<float>(Y) / (Height - 1) : 0.5f;
+
+            /* Project onto the gradient direction line.
+             * The dot product of (NX-0.5, NY-0.5) and direction gives -0.5..0.5,
+             * so we add 0.5 to normalize to 0..1. */
+            const float Proj = (NX - 0.5f) * DirX + (NY - 0.5f) * DirY + 0.5f;
+            const float T = FMath::Clamp(Proj, 0.f, 1.f);
+
+            const FLinearColor Sampled = SampleGradient(Colors, Positions, T);
+            const FColor SRGB = Sampled.ToFColor(true);
+
+            const int32 Idx = (Y * Width + X) * 4;
+            Pixels[Idx + 0] = SRGB.B;
+            Pixels[Idx + 1] = SRGB.G;
+            Pixels[Idx + 2] = SRGB.R;
+            Pixels[Idx + 3] = SRGB.A;
+        }
+    }
+
+    Mip.BulkData.Unlock();
+    Texture->UpdateResource();
+
+    return Texture;
+}
+
+UTexture2D* UUMGManager::CreateRadialGradientTexture(
+    UObject* Context,
+    const TArray<FLinearColor>& Colors,
+    const TArray<float>& Positions,
+    int32 Width,
+    int32 Height)
+{
+    if (Colors.Num() == 0 || Colors.Num() != Positions.Num())
+    {
+        UE_LOG(LogReactorUMG, Warning, TEXT("CreateRadialGradientTexture: Colors/Positions mismatch or empty"));
+        return nullptr;
+    }
+
+    Width  = FMath::Clamp(Width,  1, 2048);
+    Height = FMath::Clamp(Height, 1, 2048);
+
+    UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
+    if (!Texture)
+    {
+        return nullptr;
+    }
+
+    Texture->MipGenSettings     = TMGS_NoMipmaps;
+    Texture->CompressionSettings = TC_EditorIcon;
+    Texture->SRGB               = true;
+    Texture->Filter             = TF_Bilinear;
+    Texture->AddressX           = TA_Clamp;
+    Texture->AddressY           = TA_Clamp;
+
+    FTexture2DMipMap& Mip = Texture->GetPlatformData()->Mips[0];
+    void* RawData = Mip.BulkData.Lock(LOCK_READ_WRITE);
+    uint8* Pixels = static_cast<uint8*>(RawData);
+
+    /* Radial gradient: distance from center (0..1) drives the color lookup */
+    const float CenterX = 0.5f;
+    const float CenterY = 0.5f;
+
+    for (int32 Y = 0; Y < Height; ++Y)
+    {
+        for (int32 X = 0; X < Width; ++X)
+        {
+            const float NX = (Width  > 1) ? static_cast<float>(X) / (Width  - 1) : 0.5f;
+            const float NY = (Height > 1) ? static_cast<float>(Y) / (Height - 1) : 0.5f;
+
+            const float DX = NX - CenterX;
+            const float DY = NY - CenterY;
+            /* Distance from center, scaled so corners are at ~1.0.
+             * Using *2 so the edge of the inscribed circle is at 1.0. */
+            const float Dist = FMath::Clamp(FMath::Sqrt(DX * DX + DY * DY) * 2.f, 0.f, 1.f);
+
+            const FLinearColor Sampled = SampleGradient(Colors, Positions, Dist);
+            const FColor SRGB = Sampled.ToFColor(true);
+
+            const int32 Idx = (Y * Width + X) * 4;
+            Pixels[Idx + 0] = SRGB.B;
+            Pixels[Idx + 1] = SRGB.G;
+            Pixels[Idx + 2] = SRGB.R;
+            Pixels[Idx + 3] = SRGB.A;
+        }
+    }
+
+    Mip.BulkData.Unlock();
+    Texture->UpdateResource();
+
+    return Texture;
+}
