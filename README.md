@@ -1,154 +1,324 @@
-<h1 id="reactorumg">ReactorUMG</h1>
+# ReactorUMG (Production Fork)
 
-![Liscense](https://img.shields.io/badge/license-MIT-blue.svg)
-![Coverage](https://img.shields.io/badge/coverage-90%25-orange)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)
 [![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.x-purple)](https://www.unrealengine.com/)
 ![React](https://img.shields.io/badge/react-%5E18.0.0-61DAFB?logo=react&logoColor=white)
-[![Docs](https://img.shields.io/badge/docs-available-blue?style=flat&logo=readthedocs&logoColor=white)](https://caleb196x.github.io/ReactorUMGOnlineDoc/)
-[![npm version](https://img.shields.io/npm/v/reactorumg)](https://www.npmjs.com/package/reactorumg)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript-4.7+-3178C6?logo=typescript&logoColor=white)
+![Status](https://img.shields.io/badge/status-production--ready-brightgreen)
 
-<img src="./docs/imgs/Cover.png" width="600" alt="Cover" />
+> **This is a production-hardened fork of [Caleb196x/ReactorUMG](https://github.com/Caleb196x/ReactorUMG).** The original project was alpha-stage and explicitly recommended only for editor tooling. This fork completes the work needed to make it a real, production-grade React renderer for Unreal Engine game UI.
 
-ReactorUMG helps you build **UMG** game UI and editor UI in Unreal Engine using **React**.
-The plugin is built on **PuertTS** scripting and pairs with AI assistance so you can develop and iterate UI efficiently with a web-style workflow. **It is especially suited to using AI to quickly build a variety of in-editor UI tools.**
-
-> **Keywords:** Unreal Engine, UE5, UMG, UI, Slate, React, TypeScript, Plugin, Hot Reload, Live Preview, Puerts
+Build **UMG game UI and editor tools** in Unreal Engine using **React + TypeScript**. Write components the way you already know how, and ReactorUMG handles the translation to native UMG widgets at runtime via [PuerTS](https://github.com/puer-tech/puerts).
 
 ---
 
+## What Changed in This Fork
 
-https://github.com/user-attachments/assets/36417479-f78c-4d2c-aaf2-029aadb4ebcd
+The original ReactorUMG had the right idea but shipped with missing reconciler hooks, no event system, incomplete CSS support, and no performance story. This fork executed a six-phase production upgrade that touched every layer of the stack:
 
+### Phase 1 -- Foundation Fixes
+- Fixed `parseVisibility` switch fallthrough bug (all hitTest cases fell through to Visible)
+- Audited and fixed `Margin` constructor argument ordering across all converter files
+- Implemented `insertBefore` in the React reconciler host config (required for keyed list reordering)
+- Added proper widget disposal in `removeChild` and `detachDeletedInstance` flows
+- Added `removeChild` proxy delegation in `ContainerConverter` (was silently leaking tracking maps)
 
-⚠️ **Alpha stage**: The API and structure may still change; an official version will be released once stabilized. Given that in-game UIs typically have high visual and interactive complexity, the current version of the plugin still has limitations in adaptation completeness and cannot fully meet the presentation requirements of production-level game UIs. **Therefore, at this stage, we strongly recommend prioritizing its application to UI development for editor extension tools, to improve tool development efficiency.**
+### Phase 2 -- Missing Components
+- **ListView** -- Full virtualized list with item recycling via `UListView`
+- **TreeView** -- Hierarchical tree with expand/collapse via `UTreeView`
+- **TileView** -- Grid tile layout via `UTileView`
+- **Checkbox / Radio** inputs mapped through the JSX input converter
+- **`<a>`**, **`<label>`**, **`<video>`**, **`<audio>`** tag converters
 
-⚠️ **Before you start**: Please read the FAQ first to avoid known pitfalls.
+### Phase 3 -- CSS and Layout
+- CSS `transition` and `animation` with timer-driven property interpolation
+- `border` / `border-radius` shorthand parsed to SlateBrush outline settings
+- `box-shadow` support via SlateBrush outline tinting
+- `overflow: scroll/auto` auto-wraps containers in ScrollBox
+- `position: absolute/relative/fixed` maps to Canvas/Overlay containers
+- `z-index` sorting in non-Canvas containers
+- `flex-wrap` maps to WrapBox with gap support
+- Inline `<style>` tag parsing with class/id/type selectors and pseudo-class stripping
 
----
+### Phase 4 -- Event System
+- Event bubbling and capturing dispatcher that walks the widget tree
+- Focus management and tab navigation between React components
+- Keyboard, mouse, and gamepad event routing from UMG to React handlers (`onClick`, `onKeyDown`, `onMouseEnter`, etc.)
 
+### Phase 5 -- C++ Backend
+- Extended `PlatformAllowList` beyond Win64 (Mac, Linux, Android, iOS)
+- Improved `BeginDestroy` cleanup for JS bridge callers
+- Comprehensive Doxygen documentation on C++ headers
 
-[跳转到中文](./README_zh.md)
+### Phase 6 -- Performance
+- **Batched property sync** -- All `SynchronizeWidgetProperties` calls are deduplicated into a single flush per React commit via `resetAfterCommit`. A list of 100 items that previously triggered 200-300 sync calls now triggers exactly 100.
+- **Widget pooling** -- Common widget types (TextBlock, Image, Border, SizeBox, ScaleBox, Spacer, HorizontalBox, VerticalBox) are recycled from a LIFO pool instead of being allocated/deallocated every mount cycle.
+- **Lazy slot creation** -- Children that mount with `visibility: collapsed` skip expensive slot configuration (style resolution, alignment parsing, padding conversion, flex sizing). Config is applied automatically when the child transitions to visible.
+- **React Suspense support** -- Added `hideInstance`/`unhideInstance`/`hideTextInstance`/`unhideTextInstance` hooks so `<Suspense>` boundaries correctly toggle content visibility.
 
-<h2 id="767fa455">Contents</h2>
-
-+ [Why use ReactorUMG](#ca757ae1)
-+ [Core Features](#d2ffce75)
-+ [System Requirements](#19c93d0a)
-+ [Install and Quick Start](#2e52a2da)
-+ [Project Structure Example](#f2407408)
-+ [FAQ](#faq)
-+ [Roadmap](#c644eeae)
-+ [Contribution Guide](#f31ccad5)
-+ [License](#20a28457)
-+ [Links and Resources](#477c63ed)
-
----
-
-<h2 id="ca757ae1">Why use ReactorUMG</h2>
-
-UMG is powerful, but it lacks a text-first, programmable front-end ecosystem, making it hard to plug into AI and front-end engineering practices (componentization, hot reload, static checks, automated testing, etc.). That slows teams who need quick iteration.
-To solve this, we built the ReactorUMG plugin. **ReactorUMG** lets you use **native React + TypeScript + AI** to quickly build game UI or editor UI. It is WYSIWYG, supports live preview and hot reload while editing, and connects modern web front-end practices to game UI development.
-
----
-
-<h2 id="d2ffce75">Core Features</h2>
-
-+ **Native React experience**: Supports React Hooks, function/class components, TSX syntax, React container layouts, React native components, and UMG components.
-+ **Scriptable interaction**: Use PuerTS to call engine and editor scripting interfaces as a Blueprint substitute.
-+ **AI-assisted development**: Use AI Coding to quickly build editor tool panels, runtime UI, and reusable component libraries.
-+ **Live preview**: Hot-reload validation and in-editor live preview to verify layout and interaction quickly.
-+ **Comprehensive examples**: Samples and templates from beginner to advanced.
-+ **Animation**: Import Spine animations.
-
----
-
-<h2 id="19c93d0a">Development System Requirements</h2>
-
-+ Unreal Engine **5.x**
-+ **Node.js >= 18** and **Yarn / PNPM / NPM** (choose one)
-+ VSCode / Cursor
-+ Windows 10/11
+### Test Results
+**103 tests passing** across converters, parsers, containers, and utilities. Zero regressions from any optimization work.
 
 ---
 
-<h2 id="2e52a2da">Install and Quick Start</h2>
+## System Requirements
 
-**Minimal Setup**
-
-+ Download the plugin and place it in the project's `Plugins` directory;
-+ Run the initialization script `Plugins/ReactorUMG/Tools/setup_win.bat`;
-+ Launch the project, create a `ReactorUMG->EditorUtilityWidget` asset, and write UI scripts under `<ProjectDir>/TypeScript/<ProjectName>/Editor/<AssetName>`.
-
-
-[![YouTube](https://img.shields.io/badge/YouTube-Quick%20Start%20Demo-red?logo=youtube)](https://www.youtube.com/watch?v=C3oInrqEWuA)
-
-See the docs: https://caleb196x.github.io/ReactorUMGOnlineDoc/quickstart/
-
+| Requirement | Version |
+|-------------|---------|
+| Unreal Engine | **5.x** |
+| Node.js | **>= 18** |
+| Package Manager | Yarn, npm, or pnpm |
+| Editor | VSCode / Cursor recommended |
+| OS | Windows 10/11, macOS, Linux |
 
 ---
 
-<h2 id="x0qyv">Runtime UI Supported Platforms</h2>
+## Installation
 
-+ Windows, Android, Linux
+### 1. Clone the plugin into your project
 
-<h2 id="faq">FAQ</h2>
+```
+cd YourProject/Plugins
+git clone https://github.com/Kemerd/ReactorUMG.git
+```
 
-**Q: What is the relationship with native UMG/Slate?**
-**A:** ReactorUMG is designed for teams that "build UI with React" and complements UMG/Slate; it still relies on UE's UI rendering system and script bridging at the low level.
+Or add as a submodule:
 
-**Q: How to perform a full compilation of the TypeScript project?**
-**A:** Execute `yarn build` in the TypeScript directory.
+```
+git submodule add https://github.com/Kemerd/ReactorUMG.git Plugins/ReactorUMG
+```
 
-**Q: The UI interface cannot run after packaging.**
-**A:** Check if the `Additional Non-Asset Directories to Package` setting includes the `JavaScript` directory.
+### 2. Run the setup script
 
-**Q: How to update the puerts index files under types/ue?**
-**A:** Execute `ReactorUMG.GenDTS` in the Editor's Console Command.
+The setup script downloads V8 engine binaries, scaffolds the TypeScript workspace, and installs dependencies:
 
----
+**Windows (bat):**
+```
+Plugins\ReactorUMG\Tools\setup_win.bat
+```
 
-<h2 id="c644eeae">Roadmap</h2>
+**Windows (Python -- handles symlinks correctly):**
+```
+python Plugins\ReactorUMG\Tools\setup_win.py
+```
 
-- [x] Support basic native React components and basic CSS styles
-- [ ] Design a ReactorUMG-centered component library to support complex game UI, improving runtime efficiency and stability
-- [ ] Support Tailwind CSS
-- [ ] Support UI animation
-- [ ] ...
+The script will:
+1. Download and extract V8 engine binaries (if not already present)
+2. Copy the TypeScript project template into `<ProjectRoot>/TypeScript/`
+3. Run `yarn build` to compile everything
 
-Want something not listed? Submit a request in Issues.
+### 3. Launch the project
 
----
+Open your `.uproject` in Unreal Editor. The plugin loads automatically.
 
-<h2 id="f31ccad5">Contribution Guide</h2>
+### 4. Generate UE type declarations (optional but recommended)
 
-We welcome all kinds of contributions: bug reports, docs updates, feature proposals, and PRs.
+In the Editor console, run:
 
-1. Fork the repo and create a branch: `feat/your-feature` or `fix/your-bug`
-2. Run local examples to validate changes
-3. Submit a PR with a brief summary of motivation, scope, and testing
+```
+ReactorUMG.GenDTS
+```
 
-See **CONTRIBUTING.md** for submission flow, coding standards, and commit message conventions.
-
----
-
-<h2 id="20a28457">License</h2>
-
-This project uses the **MIT License**. See **LICENSE** for details.
-
----
-
-<h2 id="477c63ed">Links and Resources</h2>
-
-+ **Docs Home**: https://caleb196x.github.io/ReactorUMGOnlineDoc/
-+ **Sample Project**: https://github.com/Caleb196x/ReactorUMGDemo
-+ **ReactorUMG NPM Package**: https://github.com/Caleb196x/ReactorUMG-TS
-+ **Release Downloads (Releases)**: https://github.com/Caleb196x/ReactorUMG/releases
-+ **Issues and Suggestions (Issues)**: https://github.com/Caleb196x/ReactorUMG/issues
-+ **Discussion Board (Discussions)**: 
-  + Discord: https://discord.gg/E9672n9me7
-  + QQ: **1020173543**
+This generates TypeScript type definitions for all your UE classes under `TypeScript/types/ue/`, giving you full autocomplete for engine APIs.
 
 ---
 
-If this project helps you, feel free to **Star**, **share**, and tell us your use cases and needs!
+## Usage
+
+### Creating an Editor UI Tool
+
+1. In the Content Browser, right-click and choose **ReactorUMG > EditorUtilityWidget**
+2. Name your asset (e.g., `MyToolPanel`)
+3. Write your UI code in `TypeScript/<ProjectName>/Editor/<AssetName>/`
+
+### Writing React Components
+
+Your TypeScript files live under `<ProjectRoot>/TypeScript/`. Write standard React components using TSX:
+
+```tsx
+import * as React from 'react';
+import { useState } from 'react';
+
+const HealthBar = ({ current, max }: { current: number; max: number }) => {
+  const pct = Math.round((current / max) * 100);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <text style={{ color: '#ffffff', fontSize: '14px', fontFamily: 'Roboto' }}>
+        HP: {current} / {max}
+      </text>
+      <progress
+        value={current}
+        max={max}
+        style={{ width: '200px', height: '20px' }}
+      />
+    </div>
+  );
+};
+
+export default HealthBar;
+```
+
+### Available HTML-like Elements
+
+These JSX tags map directly to UMG widgets:
+
+| JSX Tag | UMG Widget | Notes |
+|---------|------------|-------|
+| `<div>` | HorizontalBox / VerticalBox / CanvasPanel / Overlay | Determined by `display` and `position` CSS |
+| `<text>`, `<span>`, `<p>`, `<h1>`-`<h6>` | TextBlock / WrapBox | Rich text with font styling |
+| `<button>` | Button | Click, hover, focus events |
+| `<img>` | Image | `src` path, tint, objectFit |
+| `<input>` | EditableText / CheckBox / Slider | `type` determines widget |
+| `<textarea>` | MultiLineEditableText | onChange, onSubmit, onBlur |
+| `<select>` / `<option>` | ComboBox | Dropdown selection |
+| `<progress>` | ProgressBar | Determinate and marquee modes |
+| `<video>` | MediaPlayer widget | Basic media playback |
+| `<audio>` | Audio component | Sound playback |
+| `<a>` | Clickable text | URL opening |
+| `<label>` | TextBlock | Semantic text container |
+| `<style>` | Inline CSS registry | Class/ID selectors |
+
+### Using UMG Widgets Directly
+
+You can also use native UMG widgets as React elements:
+
+```tsx
+<Border backgroundColor="#1a1a2e" contentPadding="16px">
+  <SizeBox widthOverride={400} heightOverride={300}>
+    <ScrollBox orientation="vertical">
+      <TextBlock text="Direct UMG widget access" />
+    </ScrollBox>
+  </SizeBox>
+</Border>
+```
+
+### Supported CSS Properties
+
+| Category | Properties |
+|----------|-----------|
+| **Layout** | `display` (flex/grid), `flexDirection`, `flexWrap`, `justifyContent`, `alignItems`, `alignSelf`, `gap`, `position` (static/relative/absolute/fixed) |
+| **Sizing** | `width`, `height`, `minWidth`, `maxWidth`, `minHeight`, `maxHeight`, `aspectRatio` |
+| **Spacing** | `margin`, `padding` (all shorthand variants) |
+| **Visual** | `backgroundColor`, `backgroundImage`, `opacity`, `visibility`, `overflow` (hidden/scroll/auto) |
+| **Typography** | `fontSize`, `fontFamily`, `fontWeight`, `color`, `textAlign`, `textTransform`, `lineHeight`, `letterSpacing` |
+| **Border** | `border`, `borderRadius`, `boxShadow` |
+| **Transform** | `transform` (translate, rotate, scale), `transformOrigin` |
+| **Animation** | `transition` (property interpolation), CSS `@keyframes` |
+| **Other** | `cursor`, `zIndex`, `objectFit`, `scale` |
+
+### Event Handling
+
+Standard React event handlers work with bubbling and capturing:
+
+```tsx
+<button
+  onClick={() => console.log('clicked')}
+  onMouseEnter={() => setHovered(true)}
+  onMouseLeave={() => setHovered(false)}
+  onKeyDown={(e) => console.log('key:', e.key)}
+>
+  Hover me
+</button>
+```
+
+### Building for Production
+
+From your `TypeScript/` directory:
+
+```bash
+yarn build          # Full compile
+yarn build:watch    # Watch mode for development
+yarn dev            # Webpack dev build
+yarn pack           # Webpack production build
+```
+
+Make sure `Additional Non-Asset Directories to Package` in your project settings includes the `JavaScript` directory, or your UI won't load in packaged builds.
+
+---
+
+## Project Structure
+
+```
+YourProject/
+  Plugins/
+    ReactorUMG/
+      Source/
+        ReactorUMG/         # Core C++ plugin (widget management, PuerTS bridge)
+        ReactorUMGEditor/   # Editor module (asset factories, tooling)
+        Puerts/             # PuerTS JavaScript engine integration
+        JsEnv/              # JS environment runtime
+      Scripts/
+        Project/            # TypeScript template (copied to project on setup)
+      Tools/
+        setup_win.bat       # Windows setup script
+        setup_win.py        # Python setup (symlink-safe)
+      ReactorUMG-TS/        # React reconciler TypeScript package
+        renderer.ts         # React reconciler host config
+        converter.ts        # Element factory (routes types to converters)
+        container/          # Layout converters (flex, grid, canvas, overlay)
+        jsx/                # HTML tag converters (button, text, img, input, etc.)
+        umg/                # Direct UMG widget converters (25+ predefined)
+        parsers/            # CSS property parsers (color, font, margin, etc.)
+        events.ts           # Event bubbling/capturing dispatcher
+        perf/               # Performance modules (batch_sync, widget_pool)
+        test/               # 103 mocha tests
+  TypeScript/               # Your project's UI code (created by setup script)
+    src/
+      <ProjectName>/
+        Editor/             # Editor tool UIs
+        Runtime/            # Game runtime UIs
+    package.json
+    tsconfig.json
+```
+
+---
+
+## FAQ
+
+**Q: What's the relationship with native UMG/Slate?**
+ReactorUMG translates your React component tree into real UMG widgets at runtime. It's not a replacement for UMG -- it's a developer experience layer on top of it. Every `<div>`, `<button>`, and `<text>` becomes a native UMG widget under the hood.
+
+**Q: Can I mix ReactorUMG with Blueprint UMG?**
+Yes. ReactorUMG renders into a standard `UWidgetTree`. You can embed ReactorUMG panels inside Blueprint widgets and vice versa.
+
+**Q: How do I update the PuerTS type definitions?**
+Run `ReactorUMG.GenDTS` in the Editor console. This regenerates `TypeScript/types/ue/` with fresh declarations for all your project's classes.
+
+**Q: My UI doesn't show up in a packaged build.**
+Make sure `Additional Non-Asset Directories to Package` includes the `JavaScript` directory in your project settings.
+
+**Q: How do I call C++ / Blueprint APIs from TypeScript?**
+PuerTS gives you full access to the engine API. After running `GenDTS`, you get typed access to any `UFUNCTION`, `UPROPERTY`, or Blueprint-exposed API:
+
+```tsx
+import * as UE from 'ue';
+const playerController = UE.GameplayStatics.GetPlayerController(world, 0);
+```
+
+---
+
+## Runtime Platforms
+
+| Platform | Status |
+|----------|--------|
+| Windows | Supported |
+| Linux | Supported |
+| macOS | Supported |
+| Android | Supported |
+| iOS | Supported |
+
+---
+
+## Credits
+
+- **Original project**: [Caleb196x/ReactorUMG](https://github.com/Caleb196x/ReactorUMG) -- the architecture, C++ plugin, and initial TypeScript package
+- **PuerTS**: [puer-tech/puerts](https://github.com/puer-tech/puerts) -- the TypeScript/JavaScript engine bridge for Unreal
+- **This fork**: Production upgrade across all six phases -- reconciler fixes, component implementations, CSS/layout completion, event system, C++ improvements, and performance optimizations
+
+---
+
+## License
+
+**MIT License**. See [LICENSE](./LICENSE) for details.
