@@ -21,16 +21,8 @@ UReactorUIWidget::UReactorUIWidget(const FObjectInitializer& ObjectInitializer)
 bool UReactorUIWidget::Initialize()
 {
 	bool SuperRes = Super::Initialize();
-#if WITH_EDITOR
-	if (GIsPlayInEditorWorld)
-	{
-		SetNewWidgetTree();
-	}
-	return SuperRes;
-#else
 	SetNewWidgetTree();
 	return SuperRes;
-#endif
 }
 
 void UReactorUIWidget::BeginDestroy()
@@ -72,14 +64,6 @@ void UReactorUIWidget::SetNewWidgetTree()
 {
 	if (!bWidgetTreeInitialized && !HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (WidgetTree != nullptr)
-		{
-			UWidgetTree* OldWidgetTree = WidgetTree;
-			WidgetTree = NewObject<UWidgetTree>(this, NAME_None, RF_Transient);
-			OldWidgetTree->MarkAsGarbage();
-			OldWidgetTree = nullptr;
-		}
-		
 		UReactorUMGBlueprintGeneratedClass* ReactorBPGC = Cast<UReactorUMGBlueprintGeneratedClass>(GetClass());
 		if (ReactorBPGC)
 		{
@@ -88,7 +72,31 @@ void UReactorUIWidget::SetNewWidgetTree()
 			LaunchScriptPath = ReactorBPGC->MainScriptPath;
 			if (!LaunchScriptPath.IsEmpty())
 			{
-				RunScriptToInitWidgetTree();
+				/* If the UMG designer owns the widget tree (Designing flag),
+				 * skip script execution to avoid clobbering designer state.
+				 * Mirrors the safety check in ReactorUtilityWidget. */
+				if (this->WidgetTree && WidgetTree->RootWidget)
+				{
+					auto RootDesignerFlags = this->WidgetTree->RootWidget->GetDesignerFlags();
+					if (!EnumHasAnyFlags(RootDesignerFlags, EWidgetDesignFlags::Designing))
+					{
+						this->WidgetTree->RootWidget->RemoveFromParent();
+						this->WidgetTree->RootWidget->MarkAsGarbage();
+						this->WidgetTree->RootWidget = nullptr;
+						RunScriptToInitWidgetTree();
+					}
+				}
+				else
+				{
+					/* No existing root widget -- fresh tree, safe to run script */
+					if (WidgetTree != nullptr)
+					{
+						UWidgetTree* OldWidgetTree = WidgetTree;
+						WidgetTree = NewObject<UWidgetTree>(this, NAME_None, RF_Transient);
+						OldWidgetTree->MarkAsGarbage();
+					}
+					RunScriptToInitWidgetTree();
+				}
 			}
 		}
 
