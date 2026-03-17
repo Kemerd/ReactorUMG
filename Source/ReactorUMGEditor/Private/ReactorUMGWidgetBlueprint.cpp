@@ -88,6 +88,14 @@ void UReactorUMGWidgetBlueprint::SetupTsScripts(const FReactorUMGCompilerLog& Co
 	}
 }
 
+void UReactorUMGWidgetBlueprint::SetupTsScriptsDeferred(bool bForceCompile, bool bForceReload)
+{
+	if (ReactorUMGCommonBP)
+	{
+		ReactorUMGCommonBP->SetupTsScriptsCore(bForceCompile, bForceReload);
+	}
+}
+
 void UReactorUMGWidgetBlueprint::SetupMonitorForTsScripts()
 {
 	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetEditorOpened().AddLambda([this](UObject* Asset)

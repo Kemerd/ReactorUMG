@@ -238,10 +238,9 @@ void UReactorUMGCommonBP::ReportToMessageLog(const FString& Message)
 	TSCompileErrorMessageBuffer.Append(Message + TEXT("\n"));
 }
 
-void UReactorUMGCommonBP::SetupTsScripts(const FReactorUMGCompilerLog& CompilerResultsLogger, bool bForceCompile, bool bForceReload)
+void UReactorUMGCommonBP::SetupTsScriptsCore(bool bForceCompile, bool bForceReload)
 {
 	FScopedSlowTask SlowTask(2);
-	FString CompileOutMessage, CompileErrorMessage;
 
 	if (!CompileErrorReporter)
 	{
@@ -253,7 +252,6 @@ void UReactorUMGCommonBP::SetupTsScripts(const FReactorUMGCompilerLog& CompilerR
 		}
 	}
 
-	
 	// Initial sync: copy all non-ts/tsx files under TsScriptHomeFullDir to destination
 	{
 		TArray<FString> AllFiles;
@@ -271,17 +269,16 @@ void UReactorUMGCommonBP::SetupTsScripts(const FReactorUMGCompilerLog& CompilerR
 	
 	if (CheckLaunchJsScriptExist())
 	{
-		// execute launch.js
 		if (bForceCompile)
 		{
-			
 			CompileTsScript();
 		}
 		SlowTask.EnterProgressFrame(0);
 		if (bForceReload)
 		{
 			ReloadJsScripts();
-		} else
+		}
+		else
 		{
 			ExecuteJsScripts();
 		}
@@ -293,7 +290,13 @@ void UReactorUMGCommonBP::SetupTsScripts(const FReactorUMGCompilerLog& CompilerR
 		ExecuteJsScripts();
 		SlowTask.EnterProgressFrame(1);
 	}
+}
 
+void UReactorUMGCommonBP::SetupTsScripts(const FReactorUMGCompilerLog& CompilerResultsLogger, bool bForceCompile, bool bForceReload)
+{
+	SetupTsScriptsCore(bForceCompile, bForceReload);
+
+	// Surface any TS compile errors into the Blueprint compiler results panel
 	if (!TSCompileErrorMessageBuffer.IsEmpty())
 	{
 		CompilerResultsLogger.Error(FText::FromString(TSCompileErrorMessageBuffer));

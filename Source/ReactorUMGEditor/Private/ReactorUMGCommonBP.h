@@ -73,6 +73,15 @@ public:
 	FORCEINLINE FString GetWidgetName() { return WidgetName; }
 
 	void SetupTsScripts(const FReactorUMGCompilerLog& CompilerResultsLogger, bool bForceCompile = false, bool bForceReload = false);
+
+	/**
+	 * Core compile/reload pipeline without a compiler results log dependency.
+	 * TS compile errors still surface via UE_LOG; they just won't appear in
+	 * the Blueprint compiler results panel.  Used by the deferred compile path
+	 * that runs outside the Kismet compiler callback.
+	 */
+	void SetupTsScriptsCore(bool bForceCompile = false, bool bForceReload = false);
+
 	void ReloadJsScripts();
 	void ExecuteJsScripts();
 	void CompileTsScript();

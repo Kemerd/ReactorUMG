@@ -19,6 +19,10 @@ public:
 	void SetupMonitorForTsScripts();
 	void SetupTsScripts(const FReactorUMGCompilerLog& CompilerResultsLogger, bool bForceCompile = false, bool bForceReload = false);
 
+	/** Deferred variant — runs compile/reload without a compiler results log.
+	 *  TS errors still surface via UE_LOG. Safe to call outside Kismet callbacks. */
+	void SetupTsScriptsDeferred(bool bForceCompile = false, bool bForceReload = false);
+
 	UFUNCTION(BlueprintCallable, Category="ReactorUMGEditor|UMGBlueprint")
 	void ForceDeleteAssets(const TArray<UObject*>& InAssetsToDelete);
 

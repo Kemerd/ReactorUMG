@@ -4,6 +4,7 @@
 #include "ReactorUMGBlueprintGeneratedClass.h"
 #include "ReactorUMGUtilityWidgetBlueprint.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
+#include "Async/Async.h"
 
 FReactorUMGBlueprintCompilerContext::FReactorUMGBlueprintCompilerContext(UWidgetBlueprint* SourceBlueprint,
 	FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompilerOptions)
@@ -54,10 +55,14 @@ void FReactorUMGBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		UE_LOG(LogTemp, Log, TEXT("FinishCompilingClass %s"), *Class->GetName())
 	}
 
+	// Skeleton classes (SKEL_*) are intermediate Kismet artifacts used for
+	// dependency resolution during Blueprint compilation.  They don't need
+	// TypeScript compilation or JS module reloads — skip them entirely.
+	const bool bIsSkeletonClass = Class && Class->GetName().StartsWith(TEXT("SKEL_"));
+
 	if (UReactorUMGWidgetBlueprint* WidgetBlueprint = Cast<UReactorUMGWidgetBlueprint>(Blueprint))
 	{
-		const FReactorUMGCompilerLog Logger(MessageLog);
-		WidgetBlueprint->SetupTsScripts(Logger, true, true);
+		// Path metadata is cheap — always safe to set immediately
 		UReactorUMGBlueprintGeneratedClass* BPGClass = CastChecked<UReactorUMGBlueprintGeneratedClass>(Class);
 		if (BPGClass)
 		{
@@ -67,12 +72,26 @@ void FReactorUMGBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			BPGClass->TsScriptHomeRelativeDir = WidgetBlueprint->GetTsScriptHomeRelativeDir();
 			BPGClass->WidgetName = WidgetBlueprint->GetWidgetName();
 		}
+
+		if (!bIsSkeletonClass)
+		{
+			// Defer the expensive TS compile + JS reload to the next game-thread
+			// task pump.  This avoids blocking the Kismet compiler for ~2 seconds
+			// (which triggers the stall detector) and prevents access violations
+			// from V8 touching UObjects that are still mid-compilation.
+			TWeakObjectPtr<UReactorUMGWidgetBlueprint> WeakBP = WidgetBlueprint;
+			AsyncTask(ENamedThreads::GameThread, [WeakBP]()
+			{
+				if (UReactorUMGWidgetBlueprint* BP = WeakBP.Get())
+				{
+					BP->SetupTsScriptsDeferred(/*bForceCompile=*/ true, /*bForceReload=*/ true);
+				}
+			});
+		}
 	}
 
 	if (UReactorUMGUtilityWidgetBlueprint* UtilityWidgetBlueprint = Cast<UReactorUMGUtilityWidgetBlueprint>(Blueprint))
 	{
-		const FReactorUMGCompilerLog Logger(MessageLog);
-		UtilityWidgetBlueprint->SetupTsScripts(Logger, true, true);
 		UReactorUMGBlueprintGeneratedClass* BPGClass = CastChecked<UReactorUMGBlueprintGeneratedClass>(Class);
 		if (BPGClass)
 		{
@@ -81,6 +100,18 @@ void FReactorUMGBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 			BPGClass->TsScriptHomeFullDir = UtilityWidgetBlueprint->GetTsScriptHomeFullDir();
 			BPGClass->TsScriptHomeRelativeDir = UtilityWidgetBlueprint->GetTsScriptHomeRelativeDir();
 			BPGClass->WidgetName = UtilityWidgetBlueprint->GetWidgetName();
+		}
+
+		if (!bIsSkeletonClass)
+		{
+			TWeakObjectPtr<UReactorUMGUtilityWidgetBlueprint> WeakBP = UtilityWidgetBlueprint;
+			AsyncTask(ENamedThreads::GameThread, [WeakBP]()
+			{
+				if (UReactorUMGUtilityWidgetBlueprint* BP = WeakBP.Get())
+				{
+					BP->SetupTsScriptsDeferred(/*bForceCompile=*/ true, /*bForceReload=*/ true);
+				}
+			});
 		}
 	}
 
