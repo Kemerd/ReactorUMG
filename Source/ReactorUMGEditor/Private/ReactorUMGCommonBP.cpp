@@ -8,6 +8,7 @@
 #include "LogReactorUMG.h"
 #include "ReactorUtils.h"
 #include "Blueprint/WidgetTree.h"
+#include "HAL/ThreadHeartBeat.h"
 #include "Misc/ScopedSlowTask.h"
 
 void FDirectoryMonitor::Watch(const FString& InDirectory)
@@ -240,6 +241,14 @@ void UReactorUMGCommonBP::ReportToMessageLog(const FString& Message)
 
 void UReactorUMGCommonBP::SetupTsScriptsCore(bool bForceCompile, bool bForceReload)
 {
+	// Suspend the thread heartbeat monitor for the duration of the TS compile
+	// + JS reload.  This operation legitimately takes ~2 seconds (V8 running
+	// the TypeScript compiler) and cannot be offloaded from the game thread
+	// because V8 isolates are single-threaded.  Without this scope, the stall
+	// detector fires, tries to capture a stack walk, and the stack walk itself
+	// crashes in ntdll!RtlVirtualUnwind with an access violation at 0x0.
+	FSlowHeartBeatScope SuspendHeartBeat;
+
 	FScopedSlowTask SlowTask(2);
 
 	if (!CompileErrorReporter)

@@ -86,17 +86,24 @@ void UReactorUIWidget::SetNewWidgetTree()
 						RunScriptToInitWidgetTree();
 					}
 				}
+			else
+			{
+				/* No existing root widget — guarantee a valid transient
+				 * WidgetTree before running the JS.  In standalone and
+				 * packaged builds, WidgetTree can be null because the
+				 * asset's serialized tree failed to deserialize. */
+				if (WidgetTree != nullptr)
+				{
+					UWidgetTree* OldWidgetTree = WidgetTree;
+					WidgetTree = NewObject<UWidgetTree>(this, NAME_None, RF_Transient);
+					OldWidgetTree->MarkAsGarbage();
+				}
 				else
 				{
-					/* No existing root widget -- fresh tree, safe to run script */
-					if (WidgetTree != nullptr)
-					{
-						UWidgetTree* OldWidgetTree = WidgetTree;
-						WidgetTree = NewObject<UWidgetTree>(this, NAME_None, RF_Transient);
-						OldWidgetTree->MarkAsGarbage();
-					}
-					RunScriptToInitWidgetTree();
+					WidgetTree = NewObject<UWidgetTree>(this, NAME_None, RF_Transient);
 				}
+				RunScriptToInitWidgetTree();
+			}
 			}
 		}
 
